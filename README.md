@@ -222,9 +222,28 @@ _dbq.py                             # 上面脚本读写数据库用的小工具
 
 ## 部署到服务器
 
-三步之外，还有三件容易漏的事。
+下面这套步骤在**全新**的阿里云 ECS 上实测走通过（Alibaba Cloud Linux 3，1.8G 内存）。
+按顺序做，**别跳**——漏掉第 0 步和第 2 步的插件选择，都会以很难查的方式失败。
 
-**1. 先把 Python 装对**（不要动系统自带的 `python3`，CentOS 上 `yum` 靠它跑）
+**0. 先加 swap（内存小于 2G 时必做）**
+
+新开的 ECS 常常是 `Swap: 0B`。装依赖时的内存峰值很容易冲过物理内存，届时进程会被
+OOM killer **无声杀掉**——只留下一句 `Killed`，不提示内存不足，极难往"内存不够"上想。
+
+```bash
+free -h                                # 先看 Swap 那行是不是 0B
+fallocate -l 2G /swapfile
+chmod 600 /swapfile
+mkswap /swapfile
+swapon /swapfile
+grep -q '/swapfile' /etc/fstab || echo '/swapfile none swap sw 0 0' >> /etc/fstab
+free -h                                # Swap 应变成 2.0Gi
+```
+
+> `fallocate` 若报 `invalid argument`（某些文件系统不支持），改用
+> `dd if=/dev/zero of=/swapfile bs=1M count=2048`。
+
+**1. 装 Python 3.11**（**不要动系统自带的 `python3`**，RHEL 系的 `yum`/`dnf` 靠它跑）
 
 ```bash
 python3 --version        # 低于 3.10 就得先装新的
@@ -240,19 +259,116 @@ bash Miniconda3-latest-Linux-x86_64.sh -b -p /opt/miniconda3
 # 之后一律用 /opt/miniconda3/envs/petstore/bin/pip 和 .../bin/python
 ```
 
-**2. MySQL 要装好，并且 `.env` 要手工建**
+用独立 venv 而不是直接 `pip3.11 install`，是为了不动系统那份 Python 3.11，
+将来 `dnf update` 时不会和手装的包打架。代价只是命令要写全路径。
 
-`.env` 被 `.gitignore` 挡住了，**clone 下来是没有的**，必须自己建
-（`cp .env.example .env`）并填上服务器上的 MySQL 口令、以及要用的 `DEEPSEEK_API_KEY`。
-除此之外 `git clone` 下来的就是全部，没有任何隐藏步骤。
+**2. 装 MySQL 8.0**
 
-**3. 放行端口**：阿里云**安全组**加一条 8001 入方向规则，服务器上再看 `firewalld` / `iptables`。
+```bash
+dnf install -y mysql-server
+systemctl enable --now mysqld
+mysql -u root -e "SELECT VERSION();"     # 刚装完 root 通常免密
+```
+
+版本必须 **≥ 5.7.8**：`customers` 表用了 `JSON` 类型（`pets` / `tags` /
+`preferred_categories`），再老的版本建表就失败。`petstore_db` 库**不用手工建**，
+首次启动会 `CREATE DATABASE IF NOT EXISTS` 并灌入种子数据。
+
+设口令时**用 `mysql_native_password`，不要用 8.0 默认的 `caching_sha2_password`**：
+
+```bash
+mysql -u root -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY '你的口令'; FLUSH PRIVILEGES;"
+mysql -u root -p'你的口令' -e "SELECT VERSION();"    # 验证
+```
+
+> **为什么必须指定插件**：`requirements.txt` 里没有 `cryptography`，而 PyMySQL 走
+> **TCP** 连 `caching_sha2_password` 时需要它，否则直接抛
+> `RuntimeError: 'cryptography' package is required for sha256_password or caching_sha2_password auth methods`。
+> `mysql_native_password`（老式 SHA1 挑战应答）可以绕开，不用加依赖。
+> 但它在 MySQL 8.0.34+ 已标记废弃、**8.4 起被移除**——将来升到 8.4 就得反过来
+> 往 `requirements.txt` 里加 `cryptography`。
+
+内存小于 2G 时顺手把 MySQL 占用压下来（`performance_schema` 白吃一百多兆，这套系统用不到）：
+
+```bash
+echo '[mysqld]' > /etc/my.cnf.d/zz-petstore-tuning.cnf
+echo 'performance_schema = OFF' >> /etc/my.cnf.d/zz-petstore-tuning.cnf
+echo 'innodb_buffer_pool_size = 128M' >> /etc/my.cnf.d/zz-petstore-tuning.cnf
+echo 'max_connections = 50' >> /etc/my.cnf.d/zz-petstore-tuning.cnf
+systemctl restart mysqld
+```
+
+`zz-` 前缀是**故意的**：`my.cnf.d` 按字母序读取，排在最后才会覆盖前面文件的同名项。
+放在这个独立文件里而不是改原文件，将来想撤直接删掉即可。
+
+**3. 建 `.env`**
+
+`.env` 被 `.gitignore` 挡住了，**clone 下来是没有的**。但**不必照抄 `.env.example` 的全部键**——
+代码里每个键都有可用的默认值（见 `backend/database.py:10-14`、`llm_client.py:9-11`、
+`qdrant_client.py:8-12`），**只有 `MYSQL_PASSWORD` 的默认值 `123456` 必须覆盖**：
+
+```bash
+echo 'MYSQL_PASSWORD=你的口令' > .env
+```
+
+`DEEPSEEK_API_KEY` 建议**先留空**：不填时 AI 功能自动降级到规则引擎，系统照常运行。
+先把基础功能验证通过、再加 key，能把"数据库连不上"和"key 不对"两类问题分开排查。
+
+**4. 装依赖**（国内服务器建议走镜像，别直连 PyPI）
+
+```bash
+/opt/petstore-venv/bin/pip install -r requirements.txt -i https://mirrors.aliyun.com/pypi/simple/
+```
+
+**5. 用 systemd 托管**
+
+别在前台跑 `python start.py`——关掉终端窗口进程就没了。存成
+`/etc/systemd/system/petstore.service`，**把两处路径换成你自己的仓库位置**：
+
+```ini
+[Unit]
+Description=Pet Store Management System
+After=network.target mysqld.service
+
+[Service]
+WorkingDirectory=/root/Pet-Business-Management-System
+ExecStart=/opt/petstore-venv/bin/python start.py
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+```
+
+```bash
+systemctl daemon-reload
+systemctl enable --now petstore
+systemctl status petstore --no-pager
+```
+
+`WorkingDirectory` 和 `ExecStart` **必须是绝对路径**——systemd 没有"当前目录"的概念，
+写相对路径服务会静默起不来（单元文件语法错误 systemd 不一定报，很难查）。
+
+**6. 放行端口**：阿里云**安全组**加一条 8001 入方向规则，服务器上再看 `firewalld` / `iptables`。
+
+> **不要放行 3306。** 后端连 MySQL 走的是 `localhost`，不需要外部访问；
+> 放行了等于把数据库直接摆到公网上。
 
 跑起来之后验证：
 
 ```bash
 curl -s localhost:8001/api/system/status   # 看降级层级对不对
 ```
+
+> ⚠️ **`Application startup complete` 不能证明 MySQL 通了。**
+> `backend/main.py` 的 lifespan 把初始化全包在 `try/except` 里（三层降级的设计使然），
+> MySQL 失败时只打印一行 `[警告] MySQL 初始化失败` 然后**照常启动**。
+> 所以必须独立验证，不能看服务状态就下结论：
+>
+> ```bash
+> mysql -u root -p'口令' -e "SHOW TABLES;" petstore_db   # 应有 9 张表
+> curl -s localhost:8001/api/stock/all | head -c 200      # 应有商品 JSON
+> ```
 
 浏览器访问 `http://<公网IP>:8001`，如果页面出来了但数据全空，
 先看浏览器开发者工具的 Network —— 请求打到 `127.0.0.1` 就说明前端还是老版本。
