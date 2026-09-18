@@ -6,10 +6,11 @@
 // 脚本版本：改了 cashier.js 就 +1，同时改 index.html 的 js/cashier.js?v= 和
 // backend/main.py 的 _FRONTEND_BUILD。三者一致才是干净的发布。
 // 页面右上角会显示这个版本号——显示不出来就说明浏览器跑的是缓存里的旧脚本。
-const CASHIER_BUILD = 'v4';
+const CASHIER_BUILD = 'v5';
 
 // ==================== API 地址常量 ====================
-const API_BASE = 'http://127.0.0.1:8001/api';
+const API_BASE = '/api';   // 同源相对路径。原先写死成 http://127.0.0.1:8001/api，部署到服务器后
+// 用浏览器远程访问时，这个地址指的是访问者自己的机器，不是服务器。
 const API = {
   CUSTOMER_INFO:   API_BASE + '/customer/',
   STOCK_ALERTS:    API_BASE + '/stock/alerts',

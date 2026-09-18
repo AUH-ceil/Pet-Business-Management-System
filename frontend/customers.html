@@ -12,7 +12,7 @@
 <aside class="sidebar">
   <div class="sidebar-logo"><div class="logo-icon"><i class="fas fa-paw"></i></div><span>宠物店经营中枢</span></div>
   <nav class="sidebar-nav">
-    <a href="/app?v=4" class="nav-item"><i class="fas fa-cash-register"></i> 收银台</a>
+    <a href="/app?v=5" class="nav-item"><i class="fas fa-cash-register"></i> 收银台</a>
     <a href="/dashboard" class="nav-item"><i class="fas fa-chart-line"></i> 经营看板</a>
     <a href="/inventory" class="nav-item"><i class="fas fa-boxes"></i> 库存管理</a>
     <a href="/customers" class="nav-item active"><i class="fas fa-users"></i> 客户档案</a>
@@ -50,7 +50,8 @@ var D=localStorage.getItem('darkMode')==='true';if(D)document.documentElement.cl
 function toggleTheme(){D=!document.documentElement.classList.contains('dark');document.documentElement.classList.toggle('dark',D);localStorage.setItem('darkMode',D);var el=document.getElementById('themeIcon');if(el)el.className=D?'fas fa-sun':'fas fa-moon';}
 function $(id){return document.getElementById(id);}
 function toast(m,t){var c=$('toastContainer');var d=document.createElement('div');d.className='toast '+(t||'success');d.innerHTML='<i class="fas fa-check-circle"></i> '+m;c.appendChild(d);setTimeout(function(){d.remove();},2500);}
-var API='http://127.0.0.1:8001/api';
+var API='/api';   // 同源相对路径。原先写死成 http://127.0.0.1:8001/api，部署到服务器后
+// 用浏览器远程访问时，这个地址指的是访问者自己的机器，不是服务器。
 async function refreshPage(){
   var r=await fetch(API+'/customers/retention-suggestions');var d=await r.json();
   var list=d.items||[];var h='';

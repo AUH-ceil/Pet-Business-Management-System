@@ -15,7 +15,14 @@
 
 ## 快速开始
 
-**环境要求**：Python 3.10+、MySQL 8.0（默认连 `localhost:3306`）
+**环境要求**：**Python 3.10+**、MySQL 8.0（默认连 `localhost:3306`）
+
+> ⚠️ **Python 3.10 是硬门槛，装依赖失败十有八九是它。**
+> 门槛由 `langgraph` 决定（它要求 `>=3.10`），`pydantic 2` 要求 `>=3.8`。
+> CentOS 7 / 阿里云 ECS 自带的 `python3` 是 **3.6.8**，在那个版本上 `pip` 只会
+> 列到 `fastapi 0.83.0` —— **那不是网络问题**，是 pip 按本机 Python 版本过滤的结果。
+> 往低改版本号没用，退到 0.83.0 之后 pydantic 和 langgraph 会接着失败。
+> 先跑 `python3 --version` 确认，详见「部署到服务器」。
 
 ```bash
 # 1. 装依赖
@@ -203,8 +210,62 @@ _dbq.py                             # 上面脚本读写数据库用的小工具
 `inventory.html` 等页面的 JS 是**内联在 HTML 里**的，所以没有 `?v=` 要改，
 但也就没有独立的 `.js` 文件可以单独 reload —— 这是它和其他页面的不一致之处。
 
-**端口是硬编码的**：每个页面的 JS 里都写着 `http://127.0.0.1:8001/api`。
-换端口要逐个文件改，这是目前的一个粗糙处。
+**前端的 API 地址是相对路径** `/api`，因为前端和后端是同一个 FastAPI 进程发出来的，
+同源即可，所以本地、换端口、部署到服务器都不用改。
+
+> 这里原先 8 个文件里写死的是 `http://127.0.0.1:8001/api`。那是**部署陷阱**：
+> 服务器上跑起来后，用浏览器从外面访问，页面里的 JS 会去请求 **`127.0.0.1`——
+> 也就是访问者自己的机器**，而不是服务器。现象是页面能显示但数据全空、
+> 报"MySQL未连接"，很容易误判成后端没起来。已全部改成 `/api`。
+
+---
+
+## 部署到服务器
+
+三步之外，还有三件容易漏的事。
+
+**1. 先把 Python 装对**（不要动系统自带的 `python3`，CentOS 上 `yum` 靠它跑）
+
+```bash
+python3 --version        # 低于 3.10 就得先装新的
+
+# Alibaba Cloud Linux 3 / CentOS 8+ / Rocky：
+dnf install -y python3.11 python3.11-pip
+python3.11 -m venv /opt/petstore-venv
+
+# CentOS 7（仓库里没有 3.10+，用 Miniconda，不用编译）：
+curl -O https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
+bash Miniconda3-latest-Linux-x86_64.sh -b -p /opt/miniconda3
+/opt/miniconda3/bin/conda create -y -n petstore python=3.11
+# 之后一律用 /opt/miniconda3/envs/petstore/bin/pip 和 .../bin/python
+```
+
+**2. MySQL 要装好，并且 `.env` 要手工建**
+
+`.env` 被 `.gitignore` 挡住了，**clone 下来是没有的**，必须自己建
+（`cp .env.example .env`）并填上服务器上的 MySQL 口令、以及要用的 `DEEPSEEK_API_KEY`。
+除此之外 `git clone` 下来的就是全部，没有任何隐藏步骤。
+
+**3. 放行端口**：阿里云**安全组**加一条 8001 入方向规则，服务器上再看 `firewalld` / `iptables`。
+
+跑起来之后验证：
+
+```bash
+curl -s localhost:8001/api/system/status   # 看降级层级对不对
+```
+
+浏览器访问 `http://<公网IP>:8001`，如果页面出来了但数据全空，
+先看浏览器开发者工具的 Network —— 请求打到 `127.0.0.1` 就说明前端还是老版本。
+
+> **另一个容易误判的现象**：8 个页面都从公网 CDN 拉 `cdn.tailwindcss.com`、
+> `cdn.jsdelivr.net`（Chart.js）、`cdnjs.cloudflare.com`（Font Awesome）。
+> 这些是**浏览器**去拉的，不占服务器带宽，但客户端网络到这几个域不稳时，
+> 页面会变成**没样式的白板**——HTML 和数据其实都正常。
+> 出现白板先看 Network 里这几个域是不是红了，别又当成后端没起来。
+> 要彻底摆脱，就把这三个文件下载到 `frontend/vendor/` 改成本地引用。
+
+> 这套系统**没有任何登录鉴权**，CORS 还是 `allow_origins=["*"]`。
+> 挂公网等于谁扫到 IP 都能调 `/api/checkout` 写库，当演示用可以，别放真实经营数据。
 
 ---
 

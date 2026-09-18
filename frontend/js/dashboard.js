@@ -5,7 +5,8 @@
 const DARK = localStorage.getItem('darkMode') === 'true';
 if (DARK) document.documentElement.classList.add('dark');
 
-const DASH_API_BASE = 'http://127.0.0.1:8001/api';
+const DASH_API_BASE = '/api';   // 同源相对路径。原先写死成 http://127.0.0.1:8001/api，部署到服务器后
+// 用浏览器远程访问时，这个地址指的是访问者自己的机器，不是服务器。
 let trendChartInst = null;
 
 // ====== 经营数据的口径 ======

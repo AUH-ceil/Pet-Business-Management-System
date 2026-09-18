@@ -34,7 +34,10 @@ const ctx = {
   Chart: FakeChart,
   fetch: async (url) => {
     calls.push(url);
-    const r = await fetch(url);
+    // 前端现在用同源相对路径 /api/...，Node 的 fetch 不认相对地址，
+    // 这里补上后端 origin。同时这也是断言"页面里没有写死主机名"的抓手。
+    const abs = url.startsWith('/') ? 'http://127.0.0.1:8001' + url : url;
+    const r = await fetch(abs);
     const t = await r.text();
     return { json: async () => JSON.parse(t) };
   },
@@ -57,6 +60,11 @@ vm.runInContext(fs.readFileSync(__dirname + '/frontend/js/dashboard.js', 'utf8')
 
   console.log('=== 初始加载（period=today）===');
   await doc._ready();
+  // 部署陷阱回归：前端必须发同源相对路径。写死 http://127.0.0.1:8001/api 的话，
+  // 服务器上跑起来后，外面的浏览器会去请求访问者自己的机器，页面全空但不报错。
+  ok(calls.length > 0 && calls.every(u => u.startsWith('/')), '所有请求都是同源相对路径，没写死主机名');
+  ok(!calls.some(u => /^https?:\/\//.test(u)), '没有任何绝对 URL（' + calls.filter(u => /^https?:\/\//.test(u)).join(',') + '）');
+
   ok(calls.some(u => u.includes('/dashboard/summary?period=today')), 'summary 带了 period=today');
   ok(calls.some(u => u.includes('/dashboard/trend?period=today')), 'trend 带了 period=today');
   ok(calls.some(u => u.includes('/dashboard/top-products?period=today')), 'top-products 带了 period=today');

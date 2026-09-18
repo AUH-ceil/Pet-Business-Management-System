@@ -67,7 +67,7 @@ app.mount("/css", StaticFiles(directory=os.path.join(FRONTEND, "css")), name="cs
 app.mount("/js", StaticFiles(directory=os.path.join(FRONTEND, "js")), name="js")
 
 # 前端构建号：改了前端就 +1。必须与 index.html 里 js/x.js?v=N 的 N 保持一致。
-_FRONTEND_BUILD = "4"
+_FRONTEND_BUILD = "5"
 
 @app.get("/")
 async def root():
