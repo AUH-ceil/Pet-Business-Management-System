@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>洗护预约 - 宠物店智慧经营中枢</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+<link rel="stylesheet" href="css/style.css">
+<script>tailwind.config={darkMode:'class',theme:{extend:{colors:{brand:{50:'#fff4ea',100:'#ffe8d5',200:'#ffd1ab',300:'#ffba81',400:'#ffa357',500:'#f9973e',600:'#e8852b',700:'#d4781f',800:'#b86514',900:'#9c520b'}}}}}</script>
+</head>
+<body class="min-h-screen">
+<aside class="sidebar">
+  <div class="sidebar-logo"><div class="logo-icon"><i class="fas fa-paw"></i></div><span>宠物店经营中枢</span></div>
+  <nav class="sidebar-nav">
+    <a href="/app?v=4" class="nav-item"><i class="fas fa-cash-register"></i> 收银台</a>
+    <a href="/dashboard" class="nav-item"><i class="fas fa-chart-line"></i> 经营看板</a>
+    <a href="/inventory" class="nav-item"><i class="fas fa-boxes"></i> 库存管理</a>
+    <a href="/customers" class="nav-item"><i class="fas fa-users"></i> 客户档案</a>
+    <a href="/grooming" class="nav-item active"><i class="fas fa-scissors"></i> 洗护预约</a>
+    <a href="/health" class="nav-item"><i class="fas fa-heart-pulse"></i> 活体健康</a>
+    <a href="/daycare" class="nav-item"><i class="fas fa-dog"></i> 宠物托管</a>
+    <a href="/content" class="nav-item"><i class="fas fa-pen-to-square"></i> 内容运营</a>
+  </nav>
+</aside>
+<header class="topbar">
+  <div class="topbar-left"><span class="page-title"><i class="fas fa-scissors mr-2" style="color:var(--accent);"></i>洗护预约</span></div>
+  <div class="topbar-right"><button class="btn btn-sm btn-primary" onclick="refreshPage()"><i class="fas fa-rotate mr-1"></i>刷新</button><div class="notify-btn" onclick="toggleTheme()"><i class="fas fa-moon" id="themeIcon"></i></div></div>
+</header>
+<main class="main-content">
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+  <div class="card">
+    <div class="card-header"><span style="font-weight:600;"><i class="fas fa-calendar-day mr-2" style="color:var(--accent);"></i>今日排班</span><span class="badge badge-accent" id="groomTotal">--</span></div>
+    <div class="card-body" id="schedulePanel" style="max-height:500px;overflow-y:auto;"><div class="empty-state"><div class="spinner"></div><p>加载中...</p></div></div>
+  </div>
+  <div>
+    <div class="card" style="margin-bottom:20px;">
+      <div class="card-header"><span style="font-weight:600;"><i class="fas fa-calendar-plus mr-2" style="color:var(--success);"></i>新增预约</span></div>
+      <div class="card-body">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <div><label style="font-size:12px;color:var(--text-muted);">顾客姓名</label><input id="custName" class="input" placeholder="顾客姓名" style="width:100%;"></div>
+          <div><label style="font-size:12px;color:var(--text-muted);">宠物名</label><input id="petName" class="input" placeholder="宠物名" style="width:100%;"></div>
+          <div><label style="font-size:12px;color:var(--text-muted);">物种</label><select id="petSpecies" class="input" style="width:100%;"><option value="狗">狗</option><option value="猫">猫</option></select></div>
+          <div><label style="font-size:12px;color:var(--text-muted);">品种</label><input id="petBreed" class="input" placeholder="如柯基、英短" style="width:100%;"></div>
+          <div><label style="font-size:12px;color:var(--text-muted);">服务类型</label><select id="serviceType" class="input" style="width:100%;"><option value="小型犬基础洗护">小型犬基础洗护 ¥88</option><option value="中大型犬精洗">中大型犬精洗 ¥158</option><option value="猫咪精洗护理">猫咪精洗护理 ¥128</option><option value="剃毛造型">剃毛造型 ¥188</option></select></div>
+          <div><label style="font-size:12px;color:var(--text-muted);">美容师</label><select id="groomer" class="input" style="width:100%;"><option value="张师傅">张师傅</option><option value="李师傅">李师傅</option></select></div>
+          <div><label style="font-size:12px;color:var(--text-muted);">预约时间</label><input id="scheduledTime" type="datetime-local" class="input" style="width:100%;"></div>
+          <div><label style="font-size:12px;color:var(--text-muted);">预计时长(分钟)</label><input id="estMinutes" type="number" value="60" class="input" style="width:100%;"></div>
+        </div>
+        <div style="margin-top:10px;"><label style="font-size:12px;color:var(--text-muted);">护理备注</label><input id="petNotes" class="input" placeholder="特殊注意事项..." style="width:100%;"></div>
+        <div style="margin-top:14px;display:flex;gap:10px;">
+          <button class="btn btn-primary" onclick="bookAppointment()"><i class="fas fa-check mr-1"></i>确认预约</button>
+          <button class="btn btn-secondary" onclick="getPetCareNotes()"><i class="fas fa-lightbulb mr-1"></i>AI护理建议</button>
+        </div>
+        <div id="bookingResult" style="margin-top:10px;"></div>
+      </div>
+    </div>
+    <div class="card" id="careNotesCard" style="display:none;">
+      <div class="card-header"><span style="font-weight:600;"><i class="fas fa-robot mr-2" style="color:var(--accent);"></i>AI护理建议</span></div>
+      <div class="card-body" id="careNotesContent"></div>
+    </div>
+  </div>
+</div>
+</main>
+<div class="toast-container" id="toastContainer"></div>
+<script>
+var D=localStorage.getItem('darkMode')==='true';if(D)document.documentElement.classList.add('dark');
+function toggleTheme(){D=!document.documentElement.classList.contains('dark');document.documentElement.classList.toggle('dark',D);localStorage.setItem('darkMode',D);var el=document.getElementById('themeIcon');if(el)el.className=D?'fas fa-sun':'fas fa-moon';}
+function $(id){return document.getElementById(id);}
+function toast(m,t){var c=$('toastContainer');var d=document.createElement('div');d.className='toast '+(t||'success');d.innerHTML='<i class="fas fa-check-circle"></i> '+m;c.appendChild(d);setTimeout(function(){d.remove();},2500);}
+var API='http://127.0.0.1:8001/api';
+async function refreshPage(){
+  var r=await fetch(API+'/grooming/today');var d=await r.json();
+  if(!d.success){$('schedulePanel').innerHTML='<div class="empty-state"><p>加载失败</p></div>';return;}
+  $('groomTotal').textContent=d.total+' 单';
+  var h='';var icons={'已预约':'⏳','进行中':'🔵','已完成':'✅'};
+  d.groomers.forEach(function(g){
+    h+='<div style="margin-bottom:10px;padding:12px;background:var(--bg-input);border-radius:8px;">';
+    h+='<div style="font-size:14px;font-weight:600;margin-bottom:8px;"><i class="fas fa-user-check mr-1" style="color:var(--accent);"></i>'+g.name+' <span style="color:var(--text-muted);font-size:12px;">'+g.appointments.length+'单</span></div>';
+    if(g.appointments.length===0){h+='<div style="font-size:12px;color:var(--text-muted);">暂无预约</div>';}
+    else{g.appointments.forEach(function(a){h+='<div style="font-size:12px;padding:4px 0;display:flex;justify-content:space-between;border-bottom:1px solid var(--border-light);"><span><b>'+a.time+'</b> '+a.pet_name+'（'+a.service_type+'）</span><span>'+(icons[a.status]||'')+a.status+'</span></div>';if(a.pet_notes)h+='<div style="font-size:11px;color:var(--text-muted);padding:2px 0 4px 8px;">💡 '+a.pet_notes+'</div>';});}
+    h+='</div>';
+  });
+  $('schedulePanel').innerHTML=h;
+}
+async function bookAppointment(){
+  var b={customer_id:'CUST'+Date.now().toString(36).toUpperCase(),customer_name:$('custName').value||'散客',pet_name:$('petName').value,pet_species:$('petSpecies').value,service_type:$('serviceType').value,groomer:$('groomer').value,scheduled_start:$('scheduledTime').value||new Date().toISOString().slice(0,16),estimated_minutes:parseInt($('estMinutes').value)||60,pet_notes:$('petNotes').value};
+  if(!b.pet_name){toast('请填写宠物名','warn');return;}
+  var r=await fetch(API+'/grooming/book',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)});var d=await r.json();
+  if(d.success){$('bookingResult').innerHTML='<div class="alert-item"><div class="alert-icon success"><i class="fas fa-check"></i></div><div class="alert-text"><div class="title">预约成功</div><div class="desc">'+d.appointment_id+'</div></div></div>';refreshPage();toast('预约成功','success');}
+  else{$('bookingResult').innerHTML='<div style="color:var(--danger);">'+d.message+'</div>';}
+}
+async function getPetCareNotes(){
+  var p=$('petName').value,s=$('petSpecies').value,b=$('petBreed').value;
+  if(!p){toast('请先填宠物名','warn');return;}
+  $('careNotesCard').style.display='block';$('careNotesContent').innerHTML='<div class="spinner"></div> AI分析中...';
+  var r=await fetch(API+'/grooming/pet-notes?pet_name='+p+'&pet_species='+s+'&breed='+(b||''));
+  var d=await r.json();
+  $('careNotesContent').innerHTML=d.success?'<div style="padding:12px;background:var(--accent-light);border-radius:8px;line-height:1.8;">'+d.notes+'</div>':'<div style="color:var(--text-muted);">获取失败</div>';
+}
+document.addEventListener('DOMContentLoaded',function(){var el=document.getElementById('themeIcon');if(el)el.className=D?'fas fa-sun':'fas fa-moon';var t=new Date();$('scheduledTime').value=t.toISOString().slice(0,16);refreshPage();});
+</script>
+</body>
+</html>

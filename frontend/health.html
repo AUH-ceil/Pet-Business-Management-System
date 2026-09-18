@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>活体健康 - 宠物店智慧经营中枢</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+<link rel="stylesheet" href="css/style.css">
+<script>tailwind.config={darkMode:'class',theme:{extend:{colors:{brand:{50:'#fff4ea',100:'#ffe8d5',200:'#ffd1ab',300:'#ffba81',400:'#ffa357',500:'#f9973e',600:'#e8852b',700:'#d4781f',800:'#b86514',900:'#9c520b'}}}}}</script>
+</head>
+<body class="min-h-screen">
+<aside class="sidebar">
+  <div class="sidebar-logo"><div class="logo-icon"><i class="fas fa-paw"></i></div><span>宠物店经营中枢</span></div>
+  <nav class="sidebar-nav">
+    <a href="/app?v=4" class="nav-item"><i class="fas fa-cash-register"></i> 收银台</a>
+    <a href="/dashboard" class="nav-item"><i class="fas fa-chart-line"></i> 经营看板</a>
+    <a href="/inventory" class="nav-item"><i class="fas fa-boxes"></i> 库存管理</a>
+    <a href="/customers" class="nav-item"><i class="fas fa-users"></i> 客户档案</a>
+    <a href="/grooming" class="nav-item"><i class="fas fa-scissors"></i> 洗护预约</a>
+    <a href="/health" class="nav-item active"><i class="fas fa-heart-pulse"></i> 活体健康</a>
+    <a href="/daycare" class="nav-item"><i class="fas fa-dog"></i> 宠物托管</a>
+    <a href="/content" class="nav-item"><i class="fas fa-pen-to-square"></i> 内容运营</a>
+  </nav>
+</aside>
+<header class="topbar">
+  <div class="topbar-left"><span class="page-title"><i class="fas fa-heart-pulse mr-2" style="color:var(--danger);"></i>活体健康哨兵</span></div>
+  <div class="topbar-right"><button class="btn btn-sm btn-primary" onclick="refreshPage()"><i class="fas fa-rotate mr-1"></i>刷新</button><div class="notify-btn" onclick="toggleTheme()"><i class="fas fa-moon" id="themeIcon"></i></div></div>
+</header>
+<main class="main-content">
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+  <div class="card">
+    <div class="card-header"><span style="font-weight:600;"><i class="fas fa-triangle-exclamation mr-2" style="color:var(--danger);"></i>健康告警</span></div>
+    <div class="card-body" id="alertsPanel" style="max-height:400px;overflow-y:auto;"><div class="empty-state"><div class="spinner"></div><p>加载中...</p></div></div>
+  </div>
+  <div>
+    <div class="card" style="margin-bottom:20px;">
+      <div class="card-header"><span style="font-weight:600;"><i class="fas fa-shield-halved mr-2" style="color:var(--warning);"></i>新宠物隔离计划</span></div>
+      <div class="card-body">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <div><label style="font-size:12px;">宠物名</label><input id="petName" class="input" placeholder="宠物名" style="width:100%;"></div>
+          <div><label style="font-size:12px;">物种</label><select id="species" class="input" style="width:100%;"><option value="狗">狗</option><option value="猫">猫</option></select></div>
+          <div><label style="font-size:12px;">品种</label><input id="breed" class="input" placeholder="如柯基" style="width:100%;"></div>
+        </div>
+        <button class="btn btn-primary" style="margin-top:12px;" onclick="genPlan()"><i class="fas fa-clipboard-list mr-1"></i>生成隔离计划并登记</button>
+        <div id="planResult" style="margin-top:10px;"></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header"><span style="font-weight:600;"><i class="fas fa-phone mr-2" style="color:var(--info);"></i>售出回访清单</span></div>
+      <div class="card-body" id="followUpPanel" style="max-height:300px;overflow-y:auto;"><div class="empty-state"><p>加载中...</p></div></div>
+    </div>
+  </div>
+</div>
+</main>
+<div class="toast-container" id="toastContainer"></div>
+<script>
+var D=localStorage.getItem('darkMode')==='true';if(D)document.documentElement.classList.add('dark');
+function toggleTheme(){D=!document.documentElement.classList.contains('dark');document.documentElement.classList.toggle('dark',D);localStorage.setItem('darkMode',D);var el=document.getElementById('themeIcon');if(el)el.className=D?'fas fa-sun':'fas fa-moon';}
+function $(id){return document.getElementById(id);}
+function toast(m,t){var c=$('toastContainer');var d=document.createElement('div');d.className='toast '+(t||'success');d.innerHTML='<i class="fas fa-check-circle"></i> '+m;c.appendChild(d);setTimeout(function(){d.remove();},2500);}
+var API='http://127.0.0.1:8001/api';
+async function refreshPage(){
+  var r=await fetch(API+'/health/alerts');var d=await r.json();
+  if(!d.success){$('alertsPanel').innerHTML='<div class="empty-state"><p>暂无数据</p></div>';return;}
+  var h='';
+  (d.isolation_alerts||[]).forEach(function(a){h+='<div class="alert-item"><div class="alert-icon warning"><i class="fas fa-shield-halved"></i></div><div class="alert-text"><div class="title">'+a.pet_name+'（'+a.breed+'）已托管'+a.hours_elapsed+'小时</div><div class="desc">'+a.message+'</div></div></div>';});
+  (d.retention_risks||[]).forEach(function(r){h+='<div class="alert-item"><div class="alert-icon danger"><i class="fas fa-user-clock"></i></div><div class="alert-text"><div class="title">'+r.customer_name+' · '+r.pet_name+'（'+r.pet_breed+'）</div><div class="desc">'+r.reason+' · '+r.suggestion+'</div></div></div>';});
+  $('alertsPanel').innerHTML=h||'<div class="empty-state"><i class="fas fa-check-circle" style="color:var(--success);"></i><p>暂无健康告警</p></div>';
+  var fh='';(d.follow_ups||[]).forEach(function(f){fh+='<div class="alert-item"><div class="alert-icon info"><i class="fas fa-phone"></i></div><div class="alert-text"><div class="title">'+f.pet_name+' — 售出第'+f.days_after_sale+'天</div><div class="desc">'+f.customer_name+' '+f.phone+' · '+f.action+'</div></div></div>';});
+  $('followUpPanel').innerHTML=fh||'<div class="empty-state"><p>暂无待回访记录</p></div>';
+}
+async function genPlan(){
+  var p=$('petName').value,s=$('species').value,b=$('breed').value;
+  if(!p){toast('请填写宠物名','warn');return;}
+  $('planResult').innerHTML='<div class="spinner"></div> 登记中...';
+  var r=await fetch(API+'/daycare/checkin',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pet_name:p,breed:b,owner_name:'待确认',owner_phone:'--',staff:'小王',daycare_type:'boarding',duration:'7天',notes:'新到活体，需隔离观察'})});
+  var d=await r.json();
+  var html='<div style="background:var(--accent-light);padding:12px;border-radius:8px;margin-top:8px;"><div style="font-weight:600;margin-bottom:8px;">📋 '+p+'（'+b+'）7天隔离计划</div>';
+  var steps=['第1天：单独隔离区观察精神食欲','第2-3天：记录进食量、排便、活动量','第4-5天：基础体检（眼耳口鼻、皮毛、体温）','第6天：体内外驱虫处理','第7天：确认无异样后转入开放区'];
+  steps.forEach(function(st,i){html+='<div style="font-size:13px;padding:4px 0;border-bottom:1px solid var(--border-light);">📌 '+st+(s==='猫'&&i===0?'（先适应环境10分钟）':'')+'</div>';});
+  html+='</div>';$('planResult').innerHTML=html;refreshPage();toast('已登记','success');
+}
+document.addEventListener('DOMContentLoaded',function(){if($('themeIcon'))$('themeIcon').className=D?'fas fa-sun':'fas fa-moon';refreshPage();});
+</script>
+</body>
+</html>

@@ -1,0 +1,56 @@
+# ============================================================
+# .gitignore — 宠物店智慧经营中枢
+# 原则：密钥 / 依赖 / 运行产物 一律不进版本库。
+# 注意：.gitignore 只挡「还没被跟踪的文件」。已经提交过的文件
+#       它挡不住，得用 git rm --cached 摘掉，而且历史里还留着。
+# ============================================================
+
+# ---------- 密钥与环境配置（最重要的一条）----------
+# .env 里有真实可用的 DEEPSEEK_API_KEY 和 MySQL 密码。
+# 提交一次就等于公开：即使下一个 commit 立刻删掉，git 历史里仍然查得到，
+# 那时候唯一的补救是去服务商后台换一把新 key。
+.env
+.env.*
+!.env.example
+
+# 其它常见凭证形态，一起挡上
+*.pem
+*.key
+*.p12
+credentials.json
+service-account*.json
+
+# ---------- Python 依赖与缓存 ----------
+# venv 有 359MB，提交进去会让仓库永远瘦不回来
+venv/
+.venv/
+env/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ---------- 运行产物 ----------
+# 本地嵌入式 Qdrant：启动会自动重建，且里面的向量是从真实销售/客户记录算出来的
+qdrant_data/
+# 向量库降级时的落盘文件（backend/qdrant_client.py 会自己 makedirs，不需要预先存在）
+data/
+*.log
+
+# ---------- 编辑器 / 系统 ----------
+# .idea/workspace.xml 里会存运行配置，可能带环境变量，整个目录一起挡
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+
+# ---------- 一次性数据备份 ----------
+# _repair_wrong_sku.py 冲正前存的数据快照。留档价值不大（库里早往前走了），
+# 想留就删掉下面这行，或者 git add -f 强制加进来。
+_repair_wrong_sku_backup.json
+
+# ---------- 临时校验脚本的中间产物 ----------
+_snap_*.json

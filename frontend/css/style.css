@@ -1,0 +1,417 @@
+/* ============================================================
+   petstore_agent/frontend/css/style.css
+   宠物店智慧经营中枢 - 全局自定义样式
+   浅色/深色双主题 + 通用组件规范
+   ============================================================ */
+
+/* ==================== CSS 变量：浅色模式 ==================== */
+:root {
+  --accent:        #f9973e;
+  --accent-hover:  #e8852b;
+  --accent-light:  #fff4ea;
+  --accent-dark:   #d4781f;
+
+  --danger:        #ef4444;
+  --danger-light:  #fef2f2;
+  --warning:       #f59e0b;
+  --warning-light: #fffbeb;
+  --success:       #22c55e;
+  --success-light: #f0fdf4;
+  --info:          #3b82f6;
+  --info-light:    #eff6ff;
+
+  --bg-body:       #f8fafc;
+  --bg-card:       #ffffff;
+  --bg-input:      #f1f5f9;
+  --bg-hover:      #f1f5f9;
+  --bg-sidebar:    #1e293b;
+  --bg-sidebar-hover: #334155;
+
+  --text-primary:   #1e293b;
+  --text-secondary: #64748b;
+  --text-muted:     #94a3b8;
+  --text-inverse:   #f8fafc;
+
+  --border:        #e2e8f0;
+  --border-light:  #f1f5f9;
+
+  --card-radius:   12px;
+  --card-shadow:   0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+
+  --scrollbar-thumb: #cbd5e1;
+  --scrollbar-track: #f1f5f9;
+
+  --sidebar-width: 220px;
+}
+
+/* ==================== CSS 变量：深色模式 ==================== */
+.dark {
+  --bg-body:       #0f172a;
+  --bg-card:       #1e293b;
+  --bg-input:      #334155;
+  --bg-hover:      #334155;
+  --bg-sidebar:    #0c1222;
+
+  --text-primary:   #f1f5f9;
+  --text-secondary: #94a3b8;
+  --text-muted:     #64748b;
+
+  --border:        #334155;
+  --border-light:  #1e293b;
+
+  --card-shadow:   0 1px 3px rgba(0,0,0,0.25), 0 1px 2px rgba(0,0,0,0.15);
+
+  --scrollbar-thumb: #475569;
+  --scrollbar-track: #1e293b;
+
+  --accent-light:  #3b2a1a;
+  --danger-light:  #3b1a1a;
+  --warning-light: #3b351a;
+  --success-light: #1a3b2a;
+  --info-light:    #1a2a3b;
+}
+
+/* ==================== 全局基础 ==================== */
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+               "Microsoft YaHei", sans-serif;
+  background: var(--bg-body);
+  color: var(--text-primary);
+  transition: background 0.3s, color 0.3s;
+  min-height: 100vh;
+}
+
+/* ==================== 滚动条美化 ==================== */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--scrollbar-track); border-radius: 3px; }
+::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+/* ==================== 通用卡片 ==================== */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow);
+  transition: background 0.3s, border-color 0.3s;
+}
+.card-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.card-body { padding: 20px; }
+
+/* ==================== 通用按钮 ==================== */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 8px 16px; border-radius: 8px; font-size: 14px; font-weight: 500;
+  border: 1px solid transparent; cursor: pointer; transition: all 0.2s; white-space: nowrap;
+}
+.btn-primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+.btn-primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+.btn-secondary { background: transparent; color: var(--text-primary); border-color: var(--border); }
+.btn-secondary:hover { background: var(--bg-hover); }
+.btn-danger { background: var(--danger); color: #fff; }
+.btn-danger:hover { background: #dc2626; }
+/* 之前 .btn-accent 只在 HTML 里出现过、样式表里没定义，
+   用了它的按钮（库存页的「AI补货分析」）实际是裸 .btn，没有底色 */
+.btn-accent { background: var(--accent-light); color: var(--accent-dark); border-color: var(--accent); }
+.btn-accent:hover { background: var(--accent); color: #fff; }
+.btn-success { background: var(--success-light); color: var(--success); border-color: var(--success); }
+.btn-success:hover { background: var(--success); color: #fff; }
+.btn-sm { padding: 5px 10px; font-size: 12px; }
+.btn-lg { padding: 12px 24px; font-size: 16px; }
+
+/* ==================== 通用输入框 ==================== */
+.input {
+  width: 100%; padding: 10px 14px; border: 1px solid var(--border);
+  border-radius: 8px; font-size: 14px; background: var(--bg-input);
+  color: var(--text-primary); outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-light); }
+.input::placeholder { color: var(--text-muted); }
+select.input { cursor: pointer; }
+
+/* ==================== 通用标签/徽章 ==================== */
+.badge {
+  display: inline-flex; align-items: center; padding: 2px 8px;
+  border-radius: 999px; font-size: 11px; font-weight: 600;
+}
+.badge-danger  { background: var(--danger-light);  color: var(--danger); }
+.badge-warning { background: var(--warning-light); color: var(--warning); }
+.badge-success { background: var(--success-light); color: var(--success); }
+.badge-info    { background: var(--info-light);    color: var(--info); }
+.badge-accent  { background: var(--accent-light);  color: var(--accent-dark); }
+
+/* ==================== 预警提示条 ==================== */
+.alert-item {
+  display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px;
+  border-radius: 8px; font-size: 13px; margin-bottom: 6px; cursor: pointer;
+  transition: background 0.2s;
+}
+.alert-item:hover { background: var(--bg-hover); }
+.alert-icon {
+  flex-shrink: 0; width: 20px; height: 20px; display: flex;
+  align-items: center; justify-content: center; border-radius: 50%;
+  font-size: 10px; color: #fff;
+}
+.alert-icon.danger  { background: var(--danger); }
+.alert-icon.warning { background: var(--warning); }
+.alert-icon.info    { background: var(--info); }
+.alert-text { flex: 1; line-height: 1.4; }
+.alert-text .title { font-weight: 600; color: var(--text-primary); }
+.alert-text .desc { color: var(--text-secondary); font-size: 12px; margin-top: 2px; }
+
+/* ==================== 空数据占位 ==================== */
+.empty-state {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; padding: 40px 20px; color: var(--text-muted); text-align: center;
+}
+.empty-state i { font-size: 48px; margin-bottom: 12px; opacity: 0.4; }
+.empty-state p { font-size: 14px; }
+
+/* ==================== Loading 旋转器 ==================== */
+.spinner {
+  width: 20px; height: 20px; border: 2px solid var(--border);
+  border-top-color: var(--accent); border-radius: 50%; animation: spin 0.6s linear infinite;
+}
+.spinner-lg { width: 36px; height: 36px; border-width: 3px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.loading-overlay {
+  position: fixed; inset: 0; z-index: 1000; display: flex;
+  align-items: center; justify-content: center;
+  background: rgba(0,0,0,0.3); backdrop-filter: blur(2px);
+}
+.loading-overlay .loading-box {
+  background: var(--bg-card); padding: 24px 36px;
+  border-radius: var(--card-radius); text-align: center;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+}
+
+/* ==================== Toast 提示 ==================== */
+.toast-container {
+  position: fixed; top: 20px; right: 20px; z-index: 2000;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.toast {
+  padding: 12px 20px; border-radius: 8px; font-size: 14px; font-weight: 500;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1); animation: slideIn 0.3s ease;
+  display: flex; align-items: center; gap: 8px; min-width: 280px;
+}
+.toast.success { background: #22c55e; color: #fff; }
+.toast.error   { background: #ef4444; color: #fff; }
+.toast.warn    { background: #f59e0b; color: #fff; }
+@keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+/* ==================== 侧边导航 ==================== */
+.sidebar {
+  position: fixed; left: 0; top: 0; bottom: 0; width: var(--sidebar-width);
+  background: var(--bg-sidebar); display: flex; flex-direction: column;
+  z-index: 900; transition: background 0.3s;
+}
+.sidebar-logo {
+  padding: 20px; display: flex; align-items: center; gap: 10px;
+  color: var(--text-inverse); font-size: 17px; font-weight: 700;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.sidebar-logo .logo-icon {
+  width: 36px; height: 36px; border-radius: 10px; background: var(--accent);
+  display: flex; align-items: center; justify-content: center; font-size: 18px; color: #fff;
+}
+.sidebar-nav { flex: 1; padding: 12px 0; overflow-y: auto; }
+.nav-item {
+  display: flex; align-items: center; gap: 10px; padding: 12px 20px;
+  color: rgba(255,255,255,0.55); font-size: 14px; cursor: pointer;
+  transition: all 0.15s; border-left: 3px solid transparent; text-decoration: none;
+}
+.nav-item:hover { color: rgba(255,255,255,0.85); background: var(--bg-sidebar-hover); }
+.nav-item.active { color: #fff; background: var(--bg-sidebar-hover); border-left-color: var(--accent); }
+.nav-item i { width: 20px; text-align: center; font-size: 15px; }
+
+/* ==================== 顶部导航栏 ==================== */
+.topbar {
+  position: fixed; left: var(--sidebar-width); right: 0; top: 0; height: 60px;
+  background: var(--bg-card); border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 24px; z-index: 800; transition: background 0.3s, border-color 0.3s;
+}
+.topbar-left { display: flex; align-items: center; gap: 12px; }
+.topbar-left .page-title { font-size: 18px; font-weight: 700; }
+.topbar-right { display: flex; align-items: center; gap: 12px; }
+.theme-toggle, .notify-btn {
+  width: 36px; height: 36px; border-radius: 8px; display: flex;
+  align-items: center; justify-content: center; cursor: pointer;
+  border: 1px solid var(--border); background: var(--bg-card);
+  color: var(--text-primary); font-size: 16px; transition: all 0.2s;
+}
+.theme-toggle:hover, .notify-btn:hover { background: var(--bg-hover); }
+.notify-btn { position: relative; }
+.notify-dot {
+  position: absolute; top: 6px; right: 6px; width: 8px; height: 8px;
+  border-radius: 50%; background: var(--danger); border: 1px solid var(--bg-card);
+}
+
+/* ==================== 主内容区 ==================== */
+.main-content {
+  margin-left: var(--sidebar-width); margin-top: 60px;
+  padding: 24px; min-height: calc(100vh - 60px);
+}
+
+/* ==================== KPI 指标卡 ==================== */
+.kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+.kpi-card {
+  padding: 20px; border-radius: var(--card-radius); position: relative; overflow: hidden;
+}
+.kpi-card .kpi-label { font-size: 13px; color: var(--text-secondary); margin-bottom: 8px; }
+.kpi-card .kpi-value { font-size: 32px; font-weight: 700; }
+.kpi-card .kpi-sub { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+.kpi-card .kpi-icon { position: absolute; right: 16px; top: 50%; transform: translateY(-50%); font-size: 36px; opacity: 0.12; }
+
+/* ==================== 收银页左右分区 ==================== */
+.cashier-layout { display: grid; grid-template-columns: 1fr 380px; gap: 20px; align-items: start; }
+.cashier-left { display: flex; flex-direction: column; gap: 16px; }
+.cashier-right { position: sticky; top: 84px; display: flex; flex-direction: column; gap: 16px; }
+
+/* ==================== 扫码输入区 ==================== */
+.scan-row { display: flex; gap: 12px; align-items: center; }
+.scan-row .input {
+  font-size: 20px; height: 52px; text-align: center; letter-spacing: 2px;
+  font-family: "Courier New", monospace; flex: 1;
+}
+.scan-row .btn { height: 52px; padding: 0 28px; font-size: 16px; }
+
+/* 扫码模式切换 */
+.scan-mode { display: flex; gap: 4px; margin-bottom: 8px; }
+.scan-mode .mode-btn {
+  padding: 5px 14px; border: 1px solid var(--border); border-radius: 6px;
+  background: transparent; color: var(--text-secondary); cursor: pointer;
+  font-size: 13px; transition: all 0.15s;
+}
+.scan-mode .mode-btn:hover { background: var(--bg-hover); }
+.scan-mode .mode-btn.active {
+  background: var(--accent-light); color: var(--accent-dark); border-color: var(--accent);
+  font-weight: 600;
+}
+
+/* ==================== 购物清单行 ==================== */
+.cart-row {
+  display: grid; grid-template-columns: 1fr 80px 60px 90px 40px;
+  gap: 8px; align-items: center; padding: 10px 0;
+  border-bottom: 1px solid var(--border-light);
+}
+.cart-row .qty-control { display: flex; align-items: center; gap: 4px; }
+.cart-row .qty-btn {
+  width: 26px; height: 26px; border-radius: 6px; border: 1px solid var(--border);
+  background: var(--bg-input); color: var(--text-primary); cursor: pointer;
+  display: flex; align-items: center; justify-content: center; font-size: 14px;
+}
+.cart-row .qty-btn:hover { background: var(--accent-light); border-color: var(--accent); }
+.cart-row .qty-num { width: 32px; text-align: center; font-weight: 600; }
+.cart-row .remove-btn { color: var(--danger); cursor: pointer; font-size: 16px; text-align: center; }
+.cart-row .remove-btn:hover { opacity: 0.7; }
+
+/* 服务类型标签 */
+.service-tag {
+  display: inline-block; padding: 1px 8px; border-radius: 4px;
+  font-size: 11px; font-weight: 600;
+}
+.service-tag.product { background: var(--info-light); color: var(--info); }
+.service-tag.grooming { background: var(--accent-light); color: var(--accent-dark); }
+.service-tag.daycare { background: var(--success-light); color: var(--success); }
+
+/* ==================== 结算栏 ==================== */
+.checkout-bar {
+  display: flex; align-items: center; justify-content: flex-end; gap: 16px;
+  padding: 16px 0 0; border-top: 2px solid var(--border); margin-top: 12px;
+}
+.checkout-total { font-size: 28px; font-weight: 700; color: var(--danger); }
+.checkout-total .currency { font-size: 16px; }
+
+/* ==================== 宠物托管卡片 ==================== */
+.daycare-card {
+  border-left: 4px solid var(--success);
+  padding: 10px 14px; border-radius: 0 8px 8px 0;
+  background: var(--bg-card); margin-bottom: 8px;
+  border-top: 1px solid var(--border); border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+.daycare-card .pet-header {
+  display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;
+}
+.daycare-card .pet-name { font-weight: 600; }
+.daycare-card .staff-badge {
+  padding: 2px 8px; border-radius: 999px; font-size: 11px;
+  background: var(--info-light); color: var(--info); font-weight: 500;
+}
+.daycare-card .detail-row {
+  display: flex; gap: 16px; font-size: 12px; color: var(--text-secondary);
+}
+.daycare-status-boarding  { border-left-color: var(--info); }
+.daycare-status-playing   { border-left-color: var(--success); }
+.daycare-status-resting   { border-left-color: var(--warning); }
+.daycare-status-pickup    { border-left-color: var(--danger); }
+
+/* ==================== AI提醒文字 ==================== */
+.ai-alert {
+  display: flex; align-items: flex-start; gap: 8px; padding: 8px 10px;
+  border-radius: 8px; background: var(--accent-light); font-size: 12px;
+  margin-bottom: 6px; color: var(--accent-dark);
+}
+.dark .ai-alert { background: rgba(249,151,62,0.15); }
+.ai-alert i { color: var(--accent); margin-top: 1px; }
+
+/* ==================== 进度条 ==================== */
+.progress-bar { height: 6px; border-radius: 3px; background: var(--bg-input); overflow: hidden; }
+.progress-fill { height: 100%; border-radius: 3px; transition: width 0.4s ease; }
+.progress-fill.danger  { background: var(--danger); }
+.progress-fill.warning { background: var(--warning); }
+.progress-fill.success { background: var(--success); }
+
+/* ==================== 时间筛选器 ==================== */
+.time-filter { display: flex; gap: 4px; }
+.time-filter .filter-btn {
+  padding: 6px 14px; border: 1px solid var(--border); border-radius: 6px;
+  background: transparent; color: var(--text-secondary); cursor: pointer;
+  font-size: 13px; transition: all 0.15s;
+}
+.time-filter .filter-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+.time-filter .filter-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+/* ==================== 看板网格 ==================== */
+.dashboard-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+
+/* ==================== Chart 容器 ==================== */
+.chart-container { position: relative; width: 100%; height: 260px; }
+.chart-container canvas { width: 100% !important; }
+
+/* ==================== 热门商品排行 ==================== */
+.rank-list { list-style: none; padding: 0; margin: 0; }
+.rank-list li {
+  display: flex; align-items: center; gap: 10px; padding: 8px 0;
+  border-bottom: 1px solid var(--border-light); font-size: 14px;
+}
+.rank-num {
+  width: 22px; height: 22px; border-radius: 6px; display: flex;
+  align-items: center; justify-content: center; font-size: 12px;
+  font-weight: 700; color: #fff; flex-shrink: 0;
+}
+.rank-num.top1 { background: #ef4444; }
+.rank-num.top2 { background: #f97316; }
+.rank-num.top3 { background: #eab308; }
+.rank-num.top { background: #94a3b8; }
+
+/* ==================== 响应式 ==================== */
+@media (max-width: 1200px) {
+  .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  .cashier-layout { grid-template-columns: 1fr; }
+  .cashier-right { position: static; }
+  .dashboard-grid { grid-template-columns: 1fr; }
+}

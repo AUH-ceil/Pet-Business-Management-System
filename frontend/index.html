@@ -1,0 +1,233 @@
+<!--
+============================================================
+  文件路径：petstore_agent/frontend/index.html
+  页面名称：宠物店智慧经营中枢 - 收银台主界面
+  面向用户：宠物店收银店员、店主
+  功能：扫码开单、快速消费登记、宠物托管签到
+============================================================
+-->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>收银台 - 宠物店智慧经营中枢</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+<link rel="stylesheet" href="css/style.css">
+<script>
+tailwind.config = {
+  darkMode: 'class',
+  theme: {
+    extend: {
+      colors: {
+        brand: { 50:'#fff4ea',100:'#ffe8d5',200:'#ffd1ab',300:'#ffba81',400:'#ffa357',500:'#f9973e',600:'#e8852b',700:'#d4781f',800:'#b86514',900:'#9c520b' }
+      }
+    }
+  }
+}
+</script>
+</head>
+<body class="min-h-screen">
+
+<!-- ==================== 侧边导航栏 ==================== -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-icon"><i class="fas fa-paw"></i></div>
+    <span>宠物店经营中枢</span>
+  </div>
+  <nav class="sidebar-nav">
+    <a href="/app?v=4" class="nav-item active"><i class="fas fa-cash-register"></i> 收银台</a>
+    <a href="/dashboard" class="nav-item"><i class="fas fa-chart-line"></i> 经营看板</a>
+    <a href="/inventory" class="nav-item"><i class="fas fa-boxes"></i> 库存先知</a>
+    <a href="/customers" class="nav-item"><i class="fas fa-users"></i> 熟客维系</a>
+    <a href="/grooming" class="nav-item"><i class="fas fa-scissors"></i> 洗护排班</a>
+    <a href="/health" class="nav-item"><i class="fas fa-heart-pulse"></i> 活体健康</a>
+    <a href="/daycare" class="nav-item"><i class="fas fa-dog"></i> 宠物托管</a>
+    <a href="/content" class="nav-item"><i class="fas fa-pen-to-square"></i> 内容运营</a>
+  </nav>
+</aside>
+
+<!-- ==================== 顶部导航栏 ==================== -->
+<header class="topbar">
+  <div class="topbar-left">
+    <span class="page-title"><i class="fas fa-cash-register mr-2" style="color:var(--accent);"></i>收银台</span>
+    <span class="badge badge-accent" id="currentDate">--</span>
+    <!-- 脚本版本戳：由 cashier.js 自己填。显示 "--" 或干脆不显示 = 浏览器跑的是旧脚本 -->
+    <span class="badge" id="buildTag" style="background:var(--bg-input);color:var(--text-muted);">--</span>
+  </div>
+  <div class="topbar-right">
+    <div class="notify-btn" title="AI待办通知">
+      <i class="fas fa-bell"></i>
+      <span class="notify-dot" id="notifyDot"></span>
+    </div>
+    <div class="notify-btn" id="themeToggle" onclick="toggleTheme()" title="切换深色/浅色模式">
+      <i class="fas fa-moon" id="themeIcon"></i>
+    </div>
+  </div>
+</header>
+
+<!-- ==================== 主内容区 ==================== -->
+<main class="main-content">
+
+<div class="cashier-layout">
+
+  <!-- ========== 左侧：业务操作区 ========== -->
+  <div class="cashier-left">
+
+    <!-- 商品分类标签 -->
+    <div class="scan-mode" id="categoryTabs">
+      <button class="mode-btn active" onclick="switchCategory('dog_food', this)"><i class="fas fa-dog mr-1"></i>狗粮</button>
+      <button class="mode-btn" onclick="switchCategory('cat_food', this)"><i class="fas fa-cat mr-1"></i>猫粮</button>
+      <button class="mode-btn" onclick="switchCategory('snacks', this)"><i class="fas fa-bone mr-1"></i>零食</button>
+      <button class="mode-btn" onclick="switchCategory('supplies', this)"><i class="fas fa-box mr-1"></i>用品</button>
+      <button class="mode-btn" onclick="switchCategory('grooming', this)"><i class="fas fa-scissors mr-1"></i>洗护服务</button>
+      <button class="mode-btn" onclick="switchCategory('daycare', this)"><i class="fas fa-house mr-1"></i>宠物托管</button>
+    </div>
+
+    <!-- 商品选择面板 -->
+    <div class="card">
+      <div class="card-header">
+        <span style="font-weight:600;"><i class="fas fa-store mr-2" style="color:var(--accent);"></i>商品列表</span>
+        <span style="font-size:13px;color:var(--text-muted);" id="productCount">-- 件可售</span>
+      </div>
+      <div class="card-body" style="max-height:320px;overflow-y:auto;" id="productGrid">
+        <div class="empty-state"><i class="fas fa-spinner"></i><p>加载中...</p></div>
+      </div>
+    </div>
+
+    <!-- 购物清单 -->
+    <div class="card">
+      <div class="card-header">
+        <span style="font-weight:600;"><i class="fas fa-list-ul mr-2" style="color:var(--accent);"></i>购物清单</span>
+        <span style="font-size:13px;color:var(--text-muted);" id="cartCount">0 件商品</span>
+      </div>
+      <div class="card-body" style="max-height:360px;overflow-y:auto;" id="cartList">
+        <div class="empty-state">
+          <i class="fas fa-shopping-basket"></i>
+          <p>扫码添加商品或服务</p>
+        </div>
+      </div>
+      <!-- 结算栏 -->
+      <div style="padding:12px 20px 20px;">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
+          <span style="font-size:14px;color:var(--text-secondary);">会员折扣</span>
+          <select id="discountSelect" class="input" style="width:120px;" onchange="recalcTotal()">
+            <option value="1">无折扣</option><option value="0.95">95折</option>
+            <option value="0.9">9折</option><option value="0.85">85折</option><option value="0.8">8折</option>
+          </select>
+          <input type="text" id="remarkInput" class="input" placeholder="备注（可选）" style="flex:1;">
+        </div>
+        <div class="checkout-bar">
+          <span style="font-size:14px;color:var(--text-secondary);">
+            共 <b id="cartQtyTotal" style="color:var(--text-primary);">0</b> 件
+          </span>
+          <span class="checkout-total">
+            <span class="currency">¥</span><span id="cartAmountTotal">0.00</span>
+          </span>
+          <button class="btn btn-secondary" onclick="clearCart()"><i class="fas fa-trash"></i> 清空</button>
+          <button class="btn btn-primary btn-lg" onclick="checkout()">
+            <i class="fas fa-check mr-1"></i> 结算
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== 右侧：AI实时信息面板 ========== -->
+  <div class="cashier-right">
+
+    <!-- 客户档案卡片 -->
+    <div class="card">
+      <div class="card-header">
+        <span style="font-weight:600;"><i class="fas fa-user-circle mr-2" style="color:var(--accent);"></i>当前客户</span>
+        <span class="badge badge-info" id="customerBadge" style="display:none;">会员</span>
+      </div>
+      <div class="card-body" id="customerPanel">
+        <!-- 手机号输入 -->
+        <div style="display:flex;gap:8px;margin-bottom:12px;">
+          <input type="text" id="customerPhone" class="input" placeholder="顾客手机号（选填）" style="flex:1;font-size:14px;">
+          <button class="btn btn-primary btn-sm" onclick="lookupCustomer()"><i class="fas fa-search mr-1"></i>查询</button>
+        </div>
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:12px;">留号码可记录购买偏好，下次自动推荐</div>
+        <div id="customerInfo" style="display:none;">
+          <div style="font-weight:700;font-size:16px;margin-bottom:2px;" id="custName">--</div>
+          <div style="font-size:12px;color:var(--text-secondary);margin-bottom:4px;" id="custPhone">--</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;" id="custHistory">--</div>
+          <!-- RAG推荐 -->
+          <div style="font-size:12px;font-weight:600;color:var(--accent);margin-bottom:4px;">
+            <i class="fas fa-brain mr-1"></i>RAG智能推荐
+          </div>
+          <div id="custRAG"></div>
+        </div>
+        <div class="empty-state" id="customerEmpty">
+          <i class="fas fa-user-group"></i>
+          <p>输入手机号查询<br>或直接结算（散客）</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- 库存预警卡片 -->
+    <div class="card">
+      <div class="card-header">
+        <span style="font-weight:600;"><i class="fas fa-box-open mr-2" style="color:var(--warning);"></i>库存预警</span>
+        <span class="badge badge-warning" id="stockAlertCount">0</span>
+      </div>
+      <div class="card-body" id="stockAlertPanel" style="max-height:200px;overflow-y:auto;">
+        <div class="empty-state">
+          <i class="fas fa-check-circle" style="color:var(--success);"></i>
+          <p>库存状态良好</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- 今日销售汇总卡片 -->
+    <div class="card">
+      <div class="card-header">
+        <span style="font-weight:600;"><i class="fas fa-cash-register mr-2" style="color:var(--success);"></i>今日已售汇总</span>
+        <span class="badge badge-success" id="soldCount">0单</span>
+      </div>
+      <div class="card-body" id="todaySoldPanel" style="max-height:200px;overflow-y:auto;">
+        <div class="empty-state">
+          <i class="fas fa-receipt"></i>
+          <p>今日暂无销售</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- 今日托管 & 待办卡片 -->
+    <div class="card">
+      <div class="card-header">
+        <span style="font-weight:600;"><i class="fas fa-dog mr-2" style="color:var(--success);"></i>今日宠物托管</span>
+        <span class="badge badge-success" id="daycareTotal">0</span>
+      </div>
+      <div class="card-body" id="daycarePanel" style="max-height:260px;overflow-y:auto;">
+        <div class="empty-state">
+          <i class="fas fa-house"></i>
+          <p>暂无托管宠物</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+</main>
+
+<!-- Loading遮罩 -->
+<div class="loading-overlay" id="loadingOverlay" style="display:none;">
+  <div class="loading-box">
+    <div class="spinner spinner-lg" style="margin:0 auto 12px;"></div>
+    <p id="loadingText" style="font-weight:500;">处理中...</p>
+  </div>
+</div>
+
+<!-- Toast容器 -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- ?v= 用于强制浏览器取新脚本：改了 cashier.js 就把它 +1，否则会拿到缓存里的旧版 -->
+<script src="js/cashier.js?v=4"></script>
+</body>
+</html>

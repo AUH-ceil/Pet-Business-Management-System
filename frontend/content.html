@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>内容运营 - 宠物店智慧经营中枢</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+<link rel="stylesheet" href="css/style.css">
+<script>tailwind.config={darkMode:'class',theme:{extend:{colors:{brand:{50:'#fff4ea',100:'#ffe8d5',200:'#ffd1ab',300:'#ffba81',400:'#ffa357',500:'#f9973e',600:'#e8852b',700:'#d4781f',800:'#b86514',900:'#9c520b'}}}}}</script>
+</head>
+<body class="min-h-screen">
+<aside class="sidebar">
+  <div class="sidebar-logo"><div class="logo-icon"><i class="fas fa-paw"></i></div><span>宠物店经营中枢</span></div>
+  <nav class="sidebar-nav">
+    <a href="/app?v=4" class="nav-item"><i class="fas fa-cash-register"></i> 收银台</a>
+    <a href="/dashboard" class="nav-item"><i class="fas fa-chart-line"></i> 经营看板</a>
+    <a href="/inventory" class="nav-item"><i class="fas fa-boxes"></i> 库存管理</a>
+    <a href="/customers" class="nav-item"><i class="fas fa-users"></i> 客户档案</a>
+    <a href="/grooming" class="nav-item"><i class="fas fa-scissors"></i> 洗护预约</a>
+    <a href="/health" class="nav-item"><i class="fas fa-heart-pulse"></i> 活体健康</a>
+    <a href="/daycare" class="nav-item"><i class="fas fa-dog"></i> 宠物托管</a>
+    <a href="/content" class="nav-item active"><i class="fas fa-pen-to-square"></i> 内容运营</a>
+  </nav>
+</aside>
+<header class="topbar">
+  <div class="topbar-left"><span class="page-title"><i class="fas fa-pen-to-square mr-2" style="color:var(--accent);"></i>AI内容运营工作台</span></div>
+  <div class="topbar-right"><div class="notify-btn" onclick="toggleTheme()"><i class="fas fa-moon" id="themeIcon"></i></div></div>
+</header>
+<main class="main-content">
+<div style="text-align:center;margin-bottom:20px;">
+  <button class="btn btn-primary btn-lg" onclick="generateAll()" style="font-size:16px;padding:14px 40px;"><i class="fas fa-wand-magic-sparkles mr-2"></i>AI一键生成全部内容</button>
+  <div style="font-size:12px;color:var(--text-muted);margin-top:8px;" id="genSource">RAG + DeepSeek 实时生成</div>
+</div>
+<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px;">
+  <div class="card">
+    <div class="card-header"><span style="font-weight:600;"><i class="fa-brands fa-weixin mr-2" style="color:#07c160;"></i>朋友圈文案</span></div>
+    <div class="card-body">
+      <div id="wechatText" style="min-height:120px;padding:16px;background:var(--bg-input);border-radius:8px;font-size:14px;line-height:1.8;color:var(--text-secondary);">点击按钮生成AI文案</div>
+      <button class="btn btn-sm btn-secondary mt-2" onclick="copyText('wechat')"><i class="far fa-copy mr-1"></i>复制</button>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-header"><span style="font-weight:600;"><i class="fas fa-users mr-2" style="color:var(--info);"></i>社群推广</span></div>
+    <div class="card-body">
+      <div id="communityText" style="min-height:120px;padding:16px;background:var(--bg-input);border-radius:8px;font-size:14px;line-height:1.8;color:var(--text-secondary);">点击按钮生成AI文案</div>
+      <button class="btn btn-sm btn-secondary mt-2" onclick="copyText('community')"><i class="far fa-copy mr-1"></i>复制</button>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-header"><span style="font-weight:600;"><i class="fas fa-camera-retro mr-2" style="color:var(--warning);"></i>今日推荐素材</span></div>
+    <div class="card-body">
+      <div id="materialsText" style="min-height:120px;padding:16px;background:var(--bg-input);border-radius:8px;font-size:14px;line-height:1.8;color:var(--text-secondary);">点击按钮获取AI推荐</div>
+    </div>
+  </div>
+</div>
+</main>
+<div class="toast-container" id="toastContainer"></div>
+<script>
+var D=localStorage.getItem('darkMode')==='true';if(D)document.documentElement.classList.add('dark');
+function toggleTheme(){D=!document.documentElement.classList.contains('dark');document.documentElement.classList.toggle('dark',D);localStorage.setItem('darkMode',D);var el=document.getElementById('themeIcon');if(el)el.className=D?'fas fa-sun':'fas fa-moon';}
+function $(id){return document.getElementById(id);}
+function toast(m,t){var c=$('toastContainer');var d=document.createElement('div');d.className='toast '+(t||'success');d.innerHTML='<i class="fas fa-check-circle"></i> '+m;c.appendChild(d);setTimeout(function(){d.remove();},2500);}
+var API='http://127.0.0.1:8001/api';
+async function generateAll(){
+  $('wechatText').innerHTML='<div class="spinner"></div>';$('communityText').innerHTML='<div class="spinner"></div>';$('materialsText').innerHTML='<div class="spinner"></div>';
+  try{
+    var r=await fetch(API+'/content/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({channel:'wechat'})});var d=await r.json();
+    if(d.success&&d.data){$('wechatText').textContent=d.data.wechat||'';$('communityText').textContent=d.data.community||'';if(d.data.materials)$('materialsText').innerHTML=d.data.materials.map(function(m){return '📸 '+(typeof m==='string'?m:m.desc||m);}).join('<br>');$('genSource').textContent='✅ '+(d.source||'AI')+' · '+new Date().toLocaleTimeString();toast('生成成功','success');}
+    else fallback();
+  }catch(e){fallback();}
+}
+function fallback(){$('wechatText').textContent='夏天到啦☀️ 驱虫药会员9折，满199送宠物凉垫！🏖️';$('communityText').textContent='邻居们好～天热遛狗选早晚凉快时段💧';$('materialsText').innerHTML='📸 洗护对比照<br>📸 新到爱肯拿猫粮<br>📸 豆豆生日派对';$('genSource').textContent='⚠️ LLM不可用，使用模板';}
+async function copyText(type){var el=type==='wechat'?$('wechatText'):$('communityText');var t=el.textContent;if(!t||t.includes('生成')){toast('请先生成','warn');return;}try{await navigator.clipboard.writeText(t);toast('已复制','success');}catch(e){toast('复制失败','error');}}
+document.addEventListener('DOMContentLoaded',function(){if($('themeIcon'))$('themeIcon').className=D?'fas fa-sun':'fas fa-moon';});
+</script>
+</body>
+</html>

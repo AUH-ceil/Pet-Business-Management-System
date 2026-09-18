@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>库存管理 - 宠物店智慧经营中枢</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+<link rel="stylesheet" href="css/style.css">
+<script>tailwind.config={darkMode:'class',theme:{extend:{colors:{brand:{50:'#fff4ea',100:'#ffe8d5',200:'#ffd1ab',300:'#ffba81',400:'#ffa357',500:'#f9973e',600:'#e8852b',700:'#d4781f',800:'#b86514',900:'#9c520b'}}}}}</script>
+</head>
+<body class="min-h-screen">
+<aside class="sidebar">
+  <div class="sidebar-logo"><div class="logo-icon"><i class="fas fa-paw"></i></div><span>宠物店经营中枢</span></div>
+  <nav class="sidebar-nav">
+    <a href="/app?v=4" class="nav-item"><i class="fas fa-cash-register"></i> 收银台</a>
+    <a href="/dashboard" class="nav-item"><i class="fas fa-chart-line"></i> 经营看板</a>
+    <a href="/inventory" class="nav-item active"><i class="fas fa-boxes"></i> 库存先知</a>
+    <a href="/customers" class="nav-item"><i class="fas fa-users"></i> 客户档案</a>
+    <a href="/grooming" class="nav-item"><i class="fas fa-scissors"></i> 洗护预约</a>
+    <a href="/health" class="nav-item"><i class="fas fa-heart-pulse"></i> 活体健康</a>
+    <a href="/daycare" class="nav-item"><i class="fas fa-dog"></i> 宠物托管</a>
+    <a href="/content" class="nav-item"><i class="fas fa-pen-to-square"></i> 内容运营</a>
+  </nav>
+</aside>
+<header class="topbar">
+  <div class="topbar-left"><span class="page-title"><i class="fas fa-boxes mr-2" style="color:var(--warning);"></i>库存先知</span></div>
+  <div class="topbar-right"><button class="btn btn-sm btn-primary" onclick="refreshPage()"><i class="fas fa-rotate mr-1"></i>刷新</button><button class="btn btn-sm btn-success" onclick="toggleInbound()"><i class="fas fa-truck-ramp-box mr-1"></i>到货入库</button><button class="btn btn-sm btn-accent" onclick="runReplenish()"><i class="fas fa-robot mr-1"></i>AI补货分析</button><div class="notify-btn" onclick="toggleTheme()"><i class="fas fa-moon" id="themeIcon"></i></div></div>
+</header>
+<main class="main-content">
+<div class="kpi-grid" style="margin-bottom:20px;">
+  <div class="card kpi-card"><div class="kpi-label">总SKU</div><div class="kpi-value" id="totalSku">--</div></div>
+  <div class="card kpi-card"><div class="kpi-label">库存总值</div><div class="kpi-value" id="totalValue">--</div></div>
+  <div class="card kpi-card"><div class="kpi-label">低库存预警</div><div class="kpi-value" style="color:var(--danger);" id="lowCount">--</div></div>
+</div>
+<div style="display:grid;grid-template-columns:2fr 1fr;gap:20px;">
+  <div class="card">
+    <div class="card-header"><span style="font-weight:600;">库存清单</span></div>
+    <div class="card-body" id="stockTable" style="max-height:500px;overflow-y:auto;"><div class="empty-state"><div class="spinner"></div><p>加载中...</p></div></div>
+  </div>
+  <div>
+    <div class="card" style="margin-bottom:20px;">
+      <div class="card-header"><span style="font-weight:600;"><i class="fas fa-clock mr-2" style="color:var(--warning);"></i>效期预警</span></div>
+      <div class="card-body" id="expiryPanel" style="max-height:200px;overflow-y:auto;"><div class="empty-state"><p>加载中...</p></div></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><span style="font-weight:600;"><i class="fas fa-snowman mr-2" style="color:var(--danger);"></i>滞销商品</span></div>
+      <div class="card-body" id="slowPanel" style="max-height:200px;overflow-y:auto;"><div class="empty-state"><p>加载中...</p></div></div>
+    </div>
+  </div>
+</div>
+<div id="replenishPanel" class="card" style="margin-top:20px;display:none;">
+  <div class="card-header"><span style="font-weight:600;"><i class="fas fa-robot mr-2" style="color:var(--accent);"></i>AI补货分析</span><span class="badge badge-accent" id="repSource">--</span></div>
+  <div class="card-body" id="replenishContent"></div>
+</div>
+
+<!-- 到货入库：多行进货单。整张单一个事务，任何一行不合法就整单退回 -->
+<div id="inboundPanel" class="card" style="margin-top:20px;display:none;">
+  <div class="card-header">
+    <span style="font-weight:600;"><i class="fas fa-truck-ramp-box mr-2" style="color:var(--success);"></i>到货入库</span>
+    <span class="badge badge-success" id="inboundTotal">本次合计 ¥0.00</span>
+  </div>
+  <div class="card-body">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
+      <div><label style="font-size:12px;color:var(--text-muted);">供应商</label>
+        <input class="input" id="inSupplier" placeholder="选填，如 渴望华东仓"></div>
+      <div><label style="font-size:12px;color:var(--text-muted);">经办人</label>
+        <input class="input" id="inOperator" value="店员"></div>
+    </div>
+    <div id="inboundRows"></div>
+    <div style="display:flex;gap:8px;margin-top:12px;">
+      <button class="btn btn-sm btn-secondary" onclick="addInboundRow()"><i class="fas fa-plus mr-1"></i>加一行</button>
+      <button class="btn btn-sm btn-primary" id="inboundSubmitBtn" onclick="submitInbound()"><i class="fas fa-check mr-1"></i>确认入库</button>
+    </div>
+    <div id="inboundPreview" style="margin-top:14px;padding:12px;background:var(--bg-input);border-radius:8px;font-size:12px;line-height:1.9;color:var(--text-secondary);">
+      <span style="color:var(--text-muted);">选好商品后，这里会显示入库后的库存和均价（预估值，以提交结果为准）</span>
+    </div>
+
+    <div style="margin-top:20px;border-top:1px solid var(--border-light);padding-top:14px;">
+      <div style="font-size:13px;font-weight:600;margin-bottom:10px;">
+        <i class="fas fa-clock-rotate-left mr-1" style="color:var(--text-muted);"></i>最近入库记录
+      </div>
+      <div id="recentInbound" style="max-height:280px;overflow-y:auto;"><div class="empty-state"><p>加载中...</p></div></div>
+    </div>
+  </div>
+</div>
+</main>
+<div class="toast-container" id="toastContainer"></div>
+<script>
+var D=localStorage.getItem('darkMode')==='true';if(D)document.documentElement.classList.add('dark');
+function toggleTheme(){D=!document.documentElement.classList.contains('dark');document.documentElement.classList.toggle('dark',D);localStorage.setItem('darkMode',D);var el=document.getElementById('themeIcon');if(el)el.className=D?'fas fa-sun':'fas fa-moon';}
+function $(id){return document.getElementById(id);}
+function toast(m,t){var c=$('toastContainer');var d=document.createElement('div');d.className='toast '+(t||'success');d.innerHTML='<i class="fas fa-check-circle"></i> '+m;c.appendChild(d);setTimeout(function(){d.remove();},2500);}
+var API='http://127.0.0.1:8001/api';
+var stockItems=[],activeCat='全部';
+// 展示顺序按养宠店实际找货习惯排，后端新出的类别排在已知类别之后
+var CAT_ORDER=['狗粮','猫粮','零食','猫砂','药品','用品','服务','托管'];
+function catRank(c){var i=CAT_ORDER.indexOf(c);return i<0?99:i;}
+function catChip(name,count){
+  var on=(name===activeCat);
+  return '<span onclick="filterCat(\''+name+'\')" style="cursor:pointer;padding:4px 10px;border-radius:12px;font-size:12px;white-space:nowrap;'
+    +'background:'+(on?'var(--accent)':'var(--bg-input)')+';color:'+(on?'#fff':'var(--text-muted)')+';">'
+    +name+' <span style="opacity:.65;">'+count+'</span></span>';
+}
+function filterCat(c){activeCat=c;renderStock();}
+
+function renderStock(){
+  var box=$('stockTable');
+  if(!stockItems.length){box.innerHTML='<div class="empty-state"><p>暂无库存数据</p></div>';return;}
+  var groups={};
+  stockItems.forEach(function(i){var c=i.category||'未分类';(groups[c]=groups[c]||[]).push(i);});
+  var cats=Object.keys(groups).sort(function(a,b){return catRank(a)-catRank(b)||a.localeCompare(b);});
+  if(activeCat!=='全部'&&!groups[activeCat])activeCat='全部';   // 类别没了就退回全部，别显示空白
+
+  var h='<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;">'+catChip('全部',stockItems.length);
+  cats.forEach(function(c){h+=catChip(c,groups[c].length);});
+  h+='</div>';
+
+  h+='<table style="width:100%;font-size:12px;"><tr style="color:var(--text-muted);border-bottom:2px solid var(--border);"><th style="text-align:left;padding:8px;">商品</th><th>库存</th><th>均价</th><th>状态</th></tr>';
+  cats.forEach(function(c){
+    if(activeCat!=='全部'&&activeCat!==c)return;
+    var rows=groups[c];
+    var sub=rows.reduce(function(s,i){return s+(i.current_stock||0);},0);
+    h+='<tr><td colspan="4" style="padding:10px 8px 6px;background:var(--bg-input);font-weight:600;">'+c
+      +'<span style="font-weight:400;color:var(--text-muted);font-size:11px;margin-left:8px;">'+rows.length+'个SKU · 合计库存'+sub+'</span></td></tr>';
+    rows.forEach(function(i){
+      var st='✅',col='var(--success)';
+      if(i.current_stock<=0){st='⚫售罄';col='var(--text-muted)';}
+      else if(i.current_stock<=3){st='🔴紧急';col='var(--danger)';}
+      else if(i.current_stock<=10){st='🟡偏低';col='var(--warning)';}
+      h+='<tr style="border-bottom:1px solid var(--border-light);"><td style="padding:8px;font-weight:500;">'+i.name
+        +'<span style="color:var(--text-muted);font-size:11px;margin-left:6px;">'+i.sku_id+'</span></td>'
+        +'<td style="text-align:center;">'+i.current_stock+(i.unit||'')+'</td>'
+        +'<td style="text-align:center;">¥'+(i.avg_cost||0).toFixed(0)+'</td>'
+        +'<td style="text-align:center;color:'+col+';">'+st+'</td></tr>';
+    });
+  });
+  h+='</table>';
+  box.innerHTML=h;
+}
+
+async function refreshPage(){
+  var r=await fetch(API+'/stock/all');var d=await r.json();
+  if(!d.success){$('stockTable').innerHTML='<div class="empty-state"><p>MySQL未连接</p></div>';return;}
+  stockItems=d.data||[];var s=d.summary||{};
+  $('totalSku').textContent=s.total_sku||stockItems.length;
+  $('totalValue').textContent='¥'+((s.total_value||0).toLocaleString());
+  $('lowCount').textContent=s.low_stock_count||0;
+  renderStock();
+  var eh='';stockItems.forEach(function(i){if(i.expiry_warning)eh+='<div class="alert-item"><div class="alert-icon warning"><i class="fas fa-clock"></i></div><div class="alert-text"><div class="title">'+i.name+'</div><div class="desc">'+i.expiry_warning+' · 剩余'+i.current_stock+'件</div></div></div>';});
+  $('expiryPanel').innerHTML=eh||'<div class="empty-state"><i class="fas fa-check-circle" style="color:var(--success);"></i><p>无临期商品</p></div>';
+  var sh='';stockItems.forEach(function(i){if(i.slow_moving)sh+='<div class="alert-item"><div class="alert-icon info"><i class="fas fa-snowman"></i></div><div class="alert-text"><div class="title">'+i.name+'</div><div class="desc">库存周转>90天，建议促销</div></div></div>';});
+  $('slowPanel').innerHTML=sh||'<div class="empty-state"><i class="fas fa-check-circle" style="color:var(--success);"></i><p>库存周转正常</p></div>';
+}
+async function runReplenish(){
+  var p=$('replenishPanel'),c=$('replenishContent');p.style.display='block';c.innerHTML='<div class="spinner"></div> RAG+LLM分析中...';
+  try{
+    var r=await fetch(API+'/replenish/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({low_stock:[],hot_items:[],category_preference:{},total_sales_count:0})});var d=await r.json();
+    if(d.success&&d.data){$('repSource').textContent='RAG+DeepSeek';var dd=d.data,h='';if(dd.analysis)h+='<div style="padding:14px;background:var(--info-light);border-radius:8px;margin-bottom:12px;">'+dd.analysis+'</div>';if(dd.urgent_items)dd.urgent_items.forEach(function(i){h+='<div class="alert-item"><div class="alert-icon danger"><i class="fas fa-exclamation"></i></div><div class="alert-text"><div class="title">'+i.name+'（仅剩'+i.current_stock+'件）</div><div class="desc">建议补货'+i.suggested_qty+'件 · '+i.reason+'</div></div></div>';});c.innerHTML=h||'<div class="empty-state"><p>库存健康</p></div>';}
+    else{c.innerHTML='<div style="font-size:13px;color:var(--text-muted);">LLM不可用，规则: max(5, 安全库存×2-当前库存)</div>';}
+  }catch(e){c.innerHTML='<div style="color:var(--danger);">分析失败</div>';}
+}
+/* ==================== 到货入库（多行进货单） ==================== */
+var inRows=[];   // 每行 {sku_id, quantity, unit_cost, expiry_date, batch_no}
+var inSubmitting=false;
+
+function toggleInbound(){
+  var p=$('inboundPanel');
+  p.style.display=(p.style.display==='none')?'block':'none';
+  if(p.style.display==='block'&&!inRows.length)addInboundRow();
+}
+function addInboundRow(pre){
+  inRows.push(pre||{sku_id:'',quantity:1,unit_cost:'',expiry_date:'',batch_no:''});
+  renderInboundRows();
+  var box=$('inboundRows');if(box)box.scrollIntoView({block:'nearest'});
+}
+function delInboundRow(i){inRows.splice(i,1);if(!inRows.length)addInboundRow();else renderInboundRows();}
+function findSku(id){return stockItems.filter(function(s){return s.sku_id===id;})[0];}
+
+// 商品下拉按类别分组，复用库存清单那套排序
+function skuOptions(sel){
+  var groups={};
+  stockItems.forEach(function(i){var c=i.category||'未分类';(groups[c]=groups[c]||[]).push(i);});
+  var cats=Object.keys(groups).sort(function(a,b){return catRank(a)-catRank(b)||a.localeCompare(b);});
+  var h='<option value="">-- 选择商品 --</option>';
+  cats.forEach(function(c){
+    h+='<optgroup label="'+c+'">';
+    groups[c].forEach(function(i){
+      h+='<option value="'+i.sku_id+'"'+(i.sku_id===sel?' selected':'')+'>'+i.name
+        +'（库存'+i.current_stock+(i.unit||'')+'）</option>';
+    });
+    h+='</optgroup>';
+  });
+  return h;
+}
+
+function renderInboundRows(){
+  var h='';
+  inRows.forEach(function(r,i){
+    h+='<div style="display:grid;grid-template-columns:2fr .8fr .9fr 1fr .9fr 36px;gap:8px;margin-bottom:8px;align-items:center;">'
+      +'<select class="input" onchange="onPickSku('+i+',this.value)">'+skuOptions(r.sku_id)+'</select>'
+      +'<input class="input" type="number" min="1" placeholder="数量" value="'+r.quantity+'" oninput="setField('+i+',\'quantity\',this.value)">'
+      +'<input class="input" type="number" min="0" step="0.01" placeholder="进价" value="'+r.unit_cost+'" oninput="setField('+i+',\'unit_cost\',this.value)">'
+      +'<input class="input" type="date" title="效期（选填）" value="'+(r.expiry_date||'')+'" onchange="setField('+i+',\'expiry_date\',this.value)">'
+      +'<input class="input" placeholder="批次号" value="'+r.batch_no+'" oninput="setField('+i+',\'batch_no\',this.value)">'
+      +'<button class="btn btn-sm btn-danger" title="删除这一行" onclick="delInboundRow('+i+')"><i class="fas fa-times"></i></button>'
+      +'</div>';
+  });
+  $('inboundRows').innerHTML=h;
+  renderInboundPreview();
+}
+
+// 选中商品时带出参考进价（用均价，没有就 0），省得每次都去翻进货单
+function onPickSku(i,sku){
+  inRows[i].sku_id=sku;
+  var p=findSku(sku);
+  if(p&&(inRows[i].unit_cost===''||inRows[i].unit_cost===0))inRows[i].unit_cost=p.avg_cost||0;
+  renderInboundRows();
+}
+// 只改数据、不重画整行——重画会把正在输入的焦点顶掉
+function setField(i,k,v){inRows[i][k]=v;renderInboundPreview();}
+
+function renderInboundPreview(){
+  var box=$('inboundPreview'),h='',total=0;
+  inRows.forEach(function(r){
+    var p=findSku(r.sku_id);if(!p)return;
+    var qty=parseInt(r.quantity,10)||0,cost=parseFloat(r.unit_cost)||0;
+    var b4=p.current_stock||0,b4c=p.avg_cost||0;
+    var after=b4+qty;
+    // 移动平均：和后端 _apply_inbound 同一个算式
+    var afterCost=after>0?((b4*b4c+qty*cost)/after):0;
+    total+=qty*cost;
+    h+='<div>'+p.name
+      +' 库存 <b>'+b4+' → '+after+'</b>，均价 <b>¥'+b4c.toFixed(2)+' → ¥'+afterCost.toFixed(2)+'</b>'
+      +'，本次金额 <b>¥'+(qty*cost).toFixed(2)+'</b></div>';
+  });
+  box.innerHTML=h||'<span style="color:var(--text-muted);">选好商品后，这里会显示入库后的库存和均价（预估值，以提交结果为准）</span>';
+  $('inboundTotal').textContent='本次合计 ¥'+total.toFixed(2);
+}
+
+async function submitInbound(){
+  if(inSubmitting)return;   // 重复提交等于凭空多进一批货
+  var lines=[],localErr=[];
+  inRows.forEach(function(r,i){
+    if(!r.sku_id)return;
+    var qty=parseInt(r.quantity,10);
+    var cost=parseFloat(r.unit_cost);
+    if(!(qty>0)){localErr.push('第'+(i+1)+'行数量必须大于 0');return;}
+    if(isNaN(cost)||cost<0){localErr.push('第'+(i+1)+'行进价不能为负');return;}
+    lines.push({sku_id:r.sku_id,quantity:qty,unit_cost:cost,
+                batch_no:r.batch_no||'',expiry_date:r.expiry_date||''});
+  });
+  if(!lines.length){toast(localErr.length?localErr[0]:'请先选择要入库的商品','error');return;}
+  if(localErr.length){localErr.forEach(function(e){toast(e,'error');});return;}
+
+  var btn=$('inboundSubmitBtn');
+  inSubmitting=true;btn.disabled=true;btn.innerHTML='<i class="fas fa-spinner fa-spin mr-1"></i>入库中...';
+  try{
+    var r=await fetch(API+'/inbound',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({lines:lines,supplier_id:$('inSupplier').value.trim(),
+                           operator:$('inOperator').value.trim()||'店员'})});
+    var d=await r.json();
+    if(d.success){
+      toast(d.message);
+      (d.price_alerts||[]).forEach(function(a){setTimeout(function(){toast(a,'warn');},700);});
+      inRows=[];addInboundRow();
+      await refreshPage();          // 库存清单/预警都要跟着变
+      loadRecentInbound();
+    }else{
+      // 校验失败时后端一次把所有问题都列出来了，别只显示第一条
+      toast(d.message,'error');
+      (d.errors||[]).slice(0,6).forEach(function(e, k){
+        setTimeout(function(){toast(e,'error');},300*(k+1));
+      });
+    }
+  }catch(e){toast('入库失败：'+e.message,'error');}
+  inSubmitting=false;btn.disabled=false;btn.innerHTML='<i class="fas fa-check mr-1"></i>确认入库';
+}
+
+async function loadRecentInbound(){
+  try{
+    var r=await fetch(API+'/inbound/recent?limit=20');var d=await r.json();
+    if(!d.success||!(d.items||[]).length){
+      $('recentInbound').innerHTML='<div class="empty-state"><p>还没有入库记录</p></div>';return;
+    }
+    var h='<table style="width:100%;font-size:12px;"><tr style="color:var(--text-muted);border-bottom:2px solid var(--border);">'
+      +'<th style="text-align:left;padding:6px;">时间</th><th style="text-align:left;padding:6px;">商品</th>'
+      +'<th>数量</th><th>进价</th><th>金额</th><th>批次</th><th>效期</th></tr>';
+    d.items.forEach(function(i){
+      h+='<tr style="border-bottom:1px solid var(--border-light);">'
+        +'<td style="padding:6px;color:var(--text-muted);white-space:nowrap;">'+i.inbound_time+'</td>'
+        +'<td style="padding:6px;">'+i.name+'<span style="color:var(--text-muted);font-size:11px;margin-left:5px;">'+i.sku_id+'</span></td>'
+        +'<td style="text-align:center;">'+i.quantity+'</td>'
+        +'<td style="text-align:center;">¥'+i.unit_cost.toFixed(2)+'</td>'
+        +'<td style="text-align:center;">¥'+i.total_cost.toFixed(2)+'</td>'
+        +'<td style="text-align:center;color:var(--text-muted);">'+(i.batch_no||'-')+'</td>'
+        +'<td style="text-align:center;color:var(--text-muted);">'+(i.expiry_date||'-')+'</td></tr>';
+    });
+    $('recentInbound').innerHTML=h+'</table>';
+  }catch(e){$('recentInbound').innerHTML='<div class="empty-state"><p>读取失败</p></div>';}
+}
+
+document.addEventListener('DOMContentLoaded',function(){if($('themeIcon'))$('themeIcon').className=D?'fas fa-sun':'fas fa-moon';refreshPage();loadRecentInbound();});
+</script>
+</body>
+</html>

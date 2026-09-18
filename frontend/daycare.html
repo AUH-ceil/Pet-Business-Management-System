@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>宠物托管 - 宠物店智慧经营中枢</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+<link rel="stylesheet" href="css/style.css">
+<script>tailwind.config={darkMode:'class',theme:{extend:{colors:{brand:{50:'#fff4ea',100:'#ffe8d5',200:'#ffd1ab',300:'#ffba81',400:'#ffa357',500:'#f9973e',600:'#e8852b',700:'#d4781f',800:'#b86514',900:'#9c520b'}}}}}</script>
+</head>
+<body class="min-h-screen">
+<aside class="sidebar">
+  <div class="sidebar-logo"><div class="logo-icon"><i class="fas fa-paw"></i></div><span>宠物店经营中枢</span></div>
+  <nav class="sidebar-nav">
+    <a href="/app?v=4" class="nav-item"><i class="fas fa-cash-register"></i> 收银台</a>
+    <a href="/dashboard" class="nav-item"><i class="fas fa-chart-line"></i> 经营看板</a>
+    <a href="/inventory" class="nav-item"><i class="fas fa-boxes"></i> 库存管理</a>
+    <a href="/customers" class="nav-item"><i class="fas fa-users"></i> 客户档案</a>
+    <a href="/grooming" class="nav-item"><i class="fas fa-scissors"></i> 洗护预约</a>
+    <a href="/health" class="nav-item"><i class="fas fa-heart-pulse"></i> 活体健康</a>
+    <a href="/daycare" class="nav-item active"><i class="fas fa-dog"></i> 宠物托管</a>
+    <a href="/content" class="nav-item"><i class="fas fa-pen-to-square"></i> 内容运营</a>
+  </nav>
+</aside>
+<header class="topbar">
+  <div class="topbar-left"><span class="page-title"><i class="fas fa-dog mr-2" style="color:var(--success);"></i>宠物托管</span></div>
+  <div class="topbar-right"><button class="btn btn-sm btn-primary" onclick="refreshPage()"><i class="fas fa-rotate mr-1"></i>刷新</button><div class="notify-btn" onclick="toggleTheme()"><i class="fas fa-moon" id="themeIcon"></i></div></div>
+</header>
+<main class="main-content">
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+  <div class="card">
+    <div class="card-header"><span style="font-weight:600;"><i class="fas fa-paw mr-2" style="color:var(--success);"></i>托管中的宠物</span><span class="badge badge-success" id="daycareCount">--</span></div>
+    <div class="card-body" id="daycareList" style="max-height:500px;overflow-y:auto;"><div class="empty-state"><div class="spinner"></div><p>加载中...</p></div></div>
+  </div>
+  <div class="card">
+    <div class="card-header"><span style="font-weight:600;"><i class="fas fa-clipboard-check mr-2" style="color:var(--accent);"></i>托管签到</span></div>
+    <div class="card-body">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div><label style="font-size:12px;color:var(--text-muted);">宠物名</label><input id="petName" class="input" placeholder="宠物名" style="width:100%;"></div>
+        <div><label style="font-size:12px;color:var(--text-muted);">品种</label><input id="breed" class="input" placeholder="如柯基" style="width:100%;"></div>
+        <div><label style="font-size:12px;color:var(--text-muted);">主人姓名</label><input id="ownerName" class="input" placeholder="主人姓名" style="width:100%;"></div>
+        <div><label style="font-size:12px;color:var(--text-muted);">手机号</label><input id="ownerPhone" class="input" placeholder="手机号" style="width:100%;"></div>
+        <div><label style="font-size:12px;color:var(--text-muted);">类型</label><select id="daycareType" class="input" style="width:100%;"><option value="daycare">日托</option><option value="boarding">寄养</option><option value="playing">玩耍</option></select></div>
+        <div><label style="font-size:12px;color:var(--text-muted);">时长</label><select id="duration" class="input" style="width:100%;"><option value="半天">半天</option><option value="全天">全天</option><option value="3天">3天</option></select></div>
+        <div><label style="font-size:12px;color:var(--text-muted);">店员</label><select id="staff" class="input" style="width:100%;"><option value="小王">小王</option><option value="小陈">小陈</option></select></div>
+      </div>
+      <div style="margin-top:10px;"><label style="font-size:12px;color:var(--text-muted);">备注</label><input id="notes" class="input" placeholder="注意事项..." style="width:100%;"></div>
+      <button class="btn btn-primary" style="margin-top:14px;" onclick="checkin()"><i class="fas fa-check mr-1"></i>签到</button>
+      <div id="result" style="margin-top:10px;"></div>
+    </div>
+  </div>
+</div>
+</main>
+<div class="toast-container" id="toastContainer"></div>
+<script>
+var D=localStorage.getItem('darkMode')==='true';if(D)document.documentElement.classList.add('dark');
+function toggleTheme(){D=!document.documentElement.classList.contains('dark');document.documentElement.classList.toggle('dark',D);localStorage.setItem('darkMode',D);var el=document.getElementById('themeIcon');if(el)el.className=D?'fas fa-sun':'fas fa-moon';}
+function $(id){return document.getElementById(id);}
+function toast(m,t){var c=$('toastContainer');var d=document.createElement('div');d.className='toast '+(t||'success');d.innerHTML='<i class="fas fa-check-circle"></i> '+m;c.appendChild(d);setTimeout(function(){d.remove();},2500);}
+var API='http://127.0.0.1:8001/api';
+async function refreshPage(){
+  var r=await fetch(API+'/daycare/today');var d=await r.json();
+  if(!d.success){$('daycareList').innerHTML='<div class="empty-state"><p>加载失败</p></div>';return;}
+  $('daycareCount').textContent=d.total+'只';
+  if(!d.data||d.data.length===0){$('daycareList').innerHTML='<div class="empty-state"><i class="fas fa-house"></i><p>暂无托管宠物</p></div>';return;}
+  var tl={daycare:'日托',boarding:'寄养',playing:'玩耍'},ss={playing:'daycare-status-playing',resting:'daycare-status-boarding',boarding:'daycare-status-boarding'};
+  var h='';
+  d.data.forEach(function(p){h+='<div class="daycare-card '+(ss[p.status]||'')+'" style="margin-bottom:8px;"><div class="pet-header"><span class="pet-name">'+p.pet_name+'（'+p.breed+'）</span><span class="staff-badge"><i class="fas fa-user-circle mr-1"></i>'+p.staff+'</span></div><div class="detail-row"><span>'+p.owner_name+' '+p.owner_phone+'</span><span>'+(tl[p.daycare_type]||p.daycare_type)+' · '+p.duration+'</span><span>'+p.checkin_time.slice(11,16)+'</span></div>'+(p.notes?'<div style="font-size:11px;color:var(--text-muted);margin-top:4px;">📝 '+p.notes+'</div>':'')+'</div>';});
+  $('daycareList').innerHTML=h;
+}
+async function checkin(){
+  var b={pet_name:$('petName').value,breed:$('breed').value,owner_name:$('ownerName').value,owner_phone:$('ownerPhone').value,staff:$('staff').value,daycare_type:$('daycareType').value,duration:$('duration').value,notes:$('notes').value};
+  if(!b.pet_name||!b.owner_name){toast('请填写宠物名和主人姓名','warn');return;}
+  var r=await fetch(API+'/daycare/checkin',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)});var d=await r.json();
+  if(d.success){$('result').innerHTML='<div class="alert-item"><div class="alert-icon success"><i class="fas fa-check"></i></div><div class="alert-text"><div class="title">签到成功</div><div class="desc">'+d.message+'</div></div></div>';refreshPage();toast(d.message,'success');}
+  else{$('result').innerHTML='<div style="color:var(--danger);">签到失败</div>';}
+}
+document.addEventListener('DOMContentLoaded',function(){if($('themeIcon'))$('themeIcon').className=D?'fas fa-sun':'fas fa-moon';refreshPage();});
+</script>
+</body>
+</html>

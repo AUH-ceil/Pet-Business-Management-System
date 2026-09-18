@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>客户档案 - 宠物店智慧经营中枢</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+<link rel="stylesheet" href="css/style.css">
+<script>tailwind.config={darkMode:'class',theme:{extend:{colors:{brand:{50:'#fff4ea',100:'#ffe8d5',200:'#ffd1ab',300:'#ffba81',400:'#ffa357',500:'#f9973e',600:'#e8852b',700:'#d4781f',800:'#b86514',900:'#9c520b'}}}}}</script>
+</head>
+<body class="min-h-screen">
+<aside class="sidebar">
+  <div class="sidebar-logo"><div class="logo-icon"><i class="fas fa-paw"></i></div><span>宠物店经营中枢</span></div>
+  <nav class="sidebar-nav">
+    <a href="/app?v=4" class="nav-item"><i class="fas fa-cash-register"></i> 收银台</a>
+    <a href="/dashboard" class="nav-item"><i class="fas fa-chart-line"></i> 经营看板</a>
+    <a href="/inventory" class="nav-item"><i class="fas fa-boxes"></i> 库存管理</a>
+    <a href="/customers" class="nav-item active"><i class="fas fa-users"></i> 客户档案</a>
+    <a href="/grooming" class="nav-item"><i class="fas fa-scissors"></i> 洗护预约</a>
+    <a href="/health" class="nav-item"><i class="fas fa-heart-pulse"></i> 活体健康</a>
+    <a href="/daycare" class="nav-item"><i class="fas fa-dog"></i> 宠物托管</a>
+    <a href="/content" class="nav-item"><i class="fas fa-pen-to-square"></i> 内容运营</a>
+  </nav>
+</aside>
+<header class="topbar">
+  <div class="topbar-left"><span class="page-title"><i class="fas fa-users mr-2" style="color:var(--info);"></i>客户档案 & RAG智能推荐</span></div>
+  <div class="topbar-right"><button class="btn btn-sm btn-primary" onclick="refreshPage()"><i class="fas fa-rotate mr-1"></i>刷新</button><div class="notify-btn" onclick="toggleTheme()"><i class="fas fa-moon" id="themeIcon"></i></div></div>
+</header>
+<main class="main-content">
+<div style="display:grid;grid-template-columns:1fr 2fr;gap:20px;">
+  <div class="card">
+    <div class="card-header"><span style="font-weight:600;"><i class="fas fa-address-book mr-2" style="color:var(--info);"></i>流失预警客户</span></div>
+    <div class="card-body" id="customerList" style="max-height:500px;overflow-y:auto;"><div class="empty-state"><div class="spinner"></div><p>加载中...</p></div></div>
+  </div>
+  <div>
+    <div class="card" style="margin-bottom:20px;">
+      <div class="card-header"><span style="font-weight:600;"><i class="fas fa-user-circle mr-2" style="color:var(--accent);"></i>客户详情</span><span class="badge badge-info" id="memberLevel"></span></div>
+      <div class="card-body" id="customerDetail"><div class="empty-state"><i class="fas fa-hand-pointer"></i><p>← 点击左侧客户查看详情</p></div></div>
+    </div>
+    <div class="card" id="ragCard" style="display:none;">
+      <div class="card-header"><span style="font-weight:600;"><i class="fas fa-brain mr-2" style="color:var(--accent);"></i>RAG智能推荐</span><span class="badge badge-accent">Qdrant余弦检索</span></div>
+      <div class="card-body" id="ragResult"></div>
+    </div>
+  </div>
+</div>
+</main>
+<div class="toast-container" id="toastContainer"></div>
+<script>
+var D=localStorage.getItem('darkMode')==='true';if(D)document.documentElement.classList.add('dark');
+function toggleTheme(){D=!document.documentElement.classList.contains('dark');document.documentElement.classList.toggle('dark',D);localStorage.setItem('darkMode',D);var el=document.getElementById('themeIcon');if(el)el.className=D?'fas fa-sun':'fas fa-moon';}
+function $(id){return document.getElementById(id);}
+function toast(m,t){var c=$('toastContainer');var d=document.createElement('div');d.className='toast '+(t||'success');d.innerHTML='<i class="fas fa-check-circle"></i> '+m;c.appendChild(d);setTimeout(function(){d.remove();},2500);}
+var API='http://127.0.0.1:8001/api';
+async function refreshPage(){
+  var r=await fetch(API+'/customers/retention-suggestions');var d=await r.json();
+  var list=d.items||[];var h='';
+  if(list.length===0){h='<div class="empty-state"><p>暂无流失风险客户</p></div>';}
+  else{list.forEach(function(c){h+='<div onclick="showCustomer(\''+c.customer_id+'\')" style="padding:12px;cursor:pointer;border-bottom:1px solid var(--border-light);" onmouseenter="this.style.background=\'var(--bg-input)\'" onmouseleave="this.style.background=\'transparent\'"><div style="font-weight:600;">'+c.name+'</div><div style="font-size:12px;color:var(--text-muted);">'+c.pet_name+'（'+c.pet_breed+'）· '+c.reason+'</div><div style="font-size:11px;color:var(--accent);">'+c.suggestion+'</div></div>';});}
+  $('customerList').innerHTML=h;
+}
+async function showCustomer(cid){
+  $('ragCard').style.display='block';$('customerDetail').innerHTML='<div class="spinner"></div> 加载中...';
+  var r=await fetch(API+'/customer/'+cid);var d=await r.json();
+  if(!d.success){$('customerDetail').innerHTML='<div style="color:var(--danger);">未找到</div>';return;}
+  var c=d.data;$('memberLevel').textContent=c.member_level||'普通';
+  var ph='';(c.pets||[]).forEach(function(p){ph+='<div style="padding:6px 10px;background:var(--bg-input);border-radius:6px;margin-bottom:4px;"><span style="font-weight:600;">'+p.name+'</span> '+p.species+' · '+p.breed+' · '+(p.age||'?')+'岁'+(p.vaccine_dates&&p.vaccine_dates.length?'<br><span style="font-size:11px;color:var(--text-muted);">疫苗: '+p.vaccine_dates[p.vaccine_dates.length-1]+'</span>':'')+(p.last_grooming?'<br><span style="font-size:11px;color:var(--text-muted);">上次洗护: '+p.last_grooming+'</span>':'')+'</div>';});
+  var ah='';(c.alerts||[]).forEach(function(a){ah+='<div class="alert-item"><div class="alert-icon '+(a.severity==='warning'?'danger':'info')+'"><i class="fas fa-bell"></i></div><div class="alert-text"><div class="title">'+a.message+'</div></div></div>';});
+  $('customerDetail').innerHTML='<div style="font-size:18px;font-weight:700;">'+c.name+'</div><div style="font-size:13px;color:var(--text-muted);margin-bottom:8px;">'+c.phone+' · 累计¥'+(c.total_spent||0)+' · 到店'+(c.visit_count||0)+'次</div><div style="font-size:13px;font-weight:600;margin-bottom:4px;">宠物档案</div>'+ph+(ah?'<div style="font-size:13px;font-weight:600;margin-top:10px;margin-bottom:4px;">AI提醒</div>'+ah:'');
+  $('ragResult').innerHTML='<div style="font-size:12px;color:var(--text-muted);">读取向量库状态...</div>';
+  renderVectorStatus();
+}
+// 如实展示当前生效的向量层，不写死 "Qdrant"（可能已降级到本地文件）
+async function renderVectorStatus(){
+  var el=$('ragResult');
+  try{
+    var r=await fetch(API+'/system/status');var v=(await r.json()).data.vector;
+    var color=v.available?'var(--text-muted)':'var(--warning)';
+    el.innerHTML='<div style="font-size:12px;color:'+color+';">'
+      +'<i class="fas '+(v.available?'fa-vector-square':'fa-database')+' mr-1"></i>'
+      +'向量层：'+v.label+' · 128维 bigram 余弦检索 · 相似养宠顾客协同过滤 · 已存 '+(v.count||0)+' 条画像</div>'
+      +(v.available?'':'<div style="font-size:11px;color:var(--text-muted);margin-top:4px;">'
+        +'（'+(v.reason||'')+'）已自动降级，检索功能不受影响</div>');
+  }catch(e){
+    el.innerHTML='<div style="font-size:12px;color:var(--warning);">'
+      +'<i class="fas fa-plug mr-1"></i>后端未连接，无法读取向量库状态</div>';
+  }
+}
+document.addEventListener('DOMContentLoaded',function(){if($('themeIcon'))$('themeIcon').className=D?'fas fa-sun':'fas fa-moon';refreshPage();});
+</script>
+</body>
+</html>

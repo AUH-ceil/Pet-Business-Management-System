@@ -1,0 +1,317 @@
+<!--
+============================================================
+  文件路径：petstore_agent/frontend/dashboard.html
+  页面名称：宠物店智慧经营中枢 - 经营数据看板
+  面向用户：店铺老板
+  功能：五大Agent汇总经营数据、预警信息、AI内容运营
+============================================================
+-->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>经营看板 - 宠物店智慧经营中枢</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+<link rel="stylesheet" href="css/style.css">
+<script>
+tailwind.config = {
+  darkMode: 'class',
+  theme: {
+    extend: {
+      colors: {
+        brand: { 50:'#fff4ea',100:'#ffe8d5',200:'#ffd1ab',300:'#ffba81',400:'#ffa357',500:'#f9973e',600:'#e8852b',700:'#d4781f',800:'#b86514',900:'#9c520b' }
+      }
+    }
+  }
+}
+</script>
+</head>
+<body class="min-h-screen">
+
+<!-- ==================== 侧边导航栏 ==================== -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-icon"><i class="fas fa-paw"></i></div>
+    <span>宠物店经营中枢</span>
+  </div>
+  <nav class="sidebar-nav">
+    <a href="/app?v=4" class="nav-item"><i class="fas fa-cash-register"></i> 收银台</a>
+    <a href="/dashboard" class="nav-item active"><i class="fas fa-chart-line"></i> 经营看板</a>
+    <a href="/inventory" class="nav-item"><i class="fas fa-boxes"></i> 库存先知</a>
+    <a href="/customers" class="nav-item"><i class="fas fa-users"></i> 熟客维系</a>
+    <a href="/grooming" class="nav-item"><i class="fas fa-scissors"></i> 洗护排班</a>
+    <a href="/health" class="nav-item"><i class="fas fa-heart-pulse"></i> 活体健康</a>
+    <a href="/daycare" class="nav-item"><i class="fas fa-dog"></i> 宠物托管</a>
+    <a href="/content" class="nav-item"><i class="fas fa-pen-to-square"></i> 内容运营</a>
+  </nav>
+</aside>
+
+<!-- ==================== 顶部导航栏 ==================== -->
+<header class="topbar">
+  <div class="topbar-left">
+    <span class="page-title"><i class="fas fa-chart-pie mr-2" style="color:var(--accent);"></i>经营看板</span>
+    <!-- 时间筛选 -->
+    <div class="time-filter">
+      <button class="filter-btn active" onclick="switchPeriod('today', this)">今日</button>
+      <button class="filter-btn" onclick="switchPeriod('week', this)">本周</button>
+      <button class="filter-btn" onclick="switchPeriod('month', this)">本月</button>
+      <button class="filter-btn" onclick="switchPeriod('year', this)">近一年</button>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <button class="btn btn-sm btn-secondary" onclick="refreshDashboard()">
+      <i class="fas fa-rotate mr-1"></i>刷新数据
+    </button>
+    <div class="notify-btn" title="AI待办通知">
+      <i class="fas fa-bell"></i>
+      <span class="notify-dot" id="notifyDot"></span>
+    </div>
+    <div class="notify-btn" id="themeToggle" onclick="toggleTheme()" title="切换深浅模式">
+      <i class="fas fa-moon" id="themeIcon"></i>
+    </div>
+  </div>
+</header>
+
+<!-- ==================== 主内容区 ==================== -->
+<main class="main-content">
+
+<!-- 顶部KPI指标栏 -->
+<div class="kpi-grid" style="margin-bottom:24px;">
+  <!-- KPI1: 今日营收 -->
+  <div class="card kpi-card">
+    <div class="kpi-label"><i class="fas fa-yen-sign mr-1"></i><span id="kpiRevenueLabel">今日营收</span></div>
+    <div class="kpi-value" id="kpiRevenue">¥0</div>
+    <div class="kpi-sub"><span id="kpiOrdersLabel">今日订单</span> <b id="kpiOrders">0</b> 笔</div>
+    <div class="kpi-icon" style="color:var(--success);"><i class="fas fa-coins"></i></div>
+  </div>
+  <!-- KPI2: 库存总览 -->
+  <div class="card kpi-card">
+    <div class="kpi-label"><i class="fas fa-boxes mr-1"></i>库存总览</div>
+    <div class="kpi-value" id="kpiStockTotal">0</div>
+    <div class="kpi-sub">低库存预警 <b style="color:var(--danger);" id="kpiLowStock">0</b> 件</div>
+    <div class="kpi-icon" style="color:var(--warning);"><i class="fas fa-warehouse"></i></div>
+  </div>
+  <!-- KPI3: 洗护 & 托管 -->
+  <div class="card kpi-card">
+    <div class="kpi-label"><i class="fas fa-scissors mr-1"></i>洗护 & 托管</div>
+    <div class="kpi-value" id="kpiGrooming">0</div>
+    <div class="kpi-sub">洗护<b id="kpiGroomingPending">0</b>单待做 | 托管中<b id="kpiDaycareActive">0</b>只</div>
+    <div class="kpi-icon" style="color:var(--accent);"><i class="fas fa-dog"></i></div>
+  </div>
+  <!-- KPI4: 客户 & 健康 -->
+  <div class="card kpi-card">
+    <div class="kpi-label"><i class="fas fa-heart-pulse mr-1"></i>客户 & 健康</div>
+    <div class="kpi-value" id="kpiCustomerRisks">0</div>
+    <div class="kpi-sub">待回访<b id="kpiFollowUp">0</b>项 | 流失预警<b id="kpiChurn">0</b>人</div>
+    <div class="kpi-icon" style="color:var(--danger);"><i class="fas fa-user-clock"></i></div>
+  </div>
+</div>
+
+<!-- 下方 2x2 卡片网格 -->
+<div class="dashboard-grid" style="margin-bottom:24px;">
+
+  <!-- 卡片A：销售趋势图 -->
+  <div class="card">
+    <div class="card-header">
+      <span style="font-weight:600;"><i class="fas fa-chart-line mr-2" style="color:var(--accent);"></i>销售趋势
+        <span id="trendRange" style="font-weight:400;font-size:12px;color:var(--text-muted);margin-left:6px;"></span>
+      </span>
+      <div style="display:flex;gap:4px;">
+        <button class="filter-btn active" id="chartBtnRevenue" onclick="switchChart('revenue',this)">营收</button>
+        <button class="filter-btn" id="chartBtnOrders" onclick="switchChart('orders',this)">订单量</button>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="chart-container"><canvas id="trendChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- 卡片B：库存动态 -->
+  <div class="card">
+    <div class="card-header">
+      <span style="font-weight:600;"><i class="fas fa-box-open mr-2" style="color:var(--warning);"></i>库存动态</span>
+      <button class="btn btn-sm btn-primary" onclick="runReplenishAnalysis()">
+        <i class="fas fa-robot mr-1"></i>AI补货分析
+      </button>
+    </div>
+    <div class="card-body">
+      <div style="font-size:13px;font-weight:600;color:var(--text-secondary);margin-bottom:8px;">
+        <i class="fas fa-fire mr-1" style="color:var(--danger);"></i>热销 TOP5
+      </div>
+      <ul class="rank-list" id="top5List">
+        <li class="empty-state" style="padding:20px;"><p>暂无数据</p></li>
+      </ul>
+      <div style="border-top:1px solid var(--border-light);margin-top:12px;padding-top:12px;" id="stockWarnings">
+      </div>
+    </div>
+  </div>
+
+  <!-- 卡片C：客户运营 -->
+  <div class="card">
+    <div class="card-header">
+      <span style="font-weight:600;"><i class="fas fa-user-group mr-2" style="color:var(--info);"></i>客户运营</span>
+      <span class="badge badge-info" id="newCustomerBadge">0 新客</span>
+    </div>
+    <div class="card-body">
+      <div style="display:flex;gap:16px;margin-bottom:16px;">
+        <div style="flex:1;text-align:center;padding:12px;background:var(--bg-input);border-radius:8px;">
+          <div style="font-size:22px;font-weight:700;color:var(--info);" id="totalCustomers">0</div>
+          <div style="font-size:12px;color:var(--text-secondary);">总客户数</div>
+        </div>
+        <div style="flex:1;text-align:center;padding:12px;background:var(--bg-input);border-radius:8px;">
+          <div style="font-size:22px;font-weight:700;color:var(--success);" id="repeatRate">0%</div>
+          <div style="font-size:12px;color:var(--text-secondary);">复购率</div>
+        </div>
+      </div>
+      <div style="font-size:13px;font-weight:600;color:var(--text-secondary);margin-bottom:8px;">
+        <i class="fas fa-robot mr-1" style="color:var(--accent);"></i>AI推荐维系客户
+      </div>
+      <div id="customerRetentionList" style="max-height:180px;overflow-y:auto;">
+        <div class="empty-state"><p>暂无推荐</p></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 卡片D：洗护 & 活体 & 托管 -->
+  <div class="card">
+    <div class="card-header">
+      <span style="font-weight:600;"><i class="fas fa-calendar-check mr-2" style="color:var(--success);"></i>洗护 & 活体 & 托管</span>
+    </div>
+    <div class="card-body" style="max-height:360px;overflow-y:auto;">
+      <!-- 美容师排班 -->
+      <div style="font-size:13px;font-weight:600;color:var(--text-secondary);margin-bottom:8px;">
+        <i class="fas fa-user-check mr-1"></i>美容师今日排班
+      </div>
+      <div id="groomerSchedule"></div>
+      <!-- 宠物托管状态 -->
+      <div style="font-size:13px;font-weight:600;color:var(--text-secondary);margin-bottom:8px;margin-top:16px;border-top:1px solid var(--border-light);padding-top:12px;">
+        <i class="fas fa-dog mr-1" style="color:var(--success);"></i>宠物托管中
+      </div>
+      <div id="daycareStatus"></div>
+      <!-- 待处理事项 -->
+      <div style="font-size:13px;font-weight:600;color:var(--text-secondary);margin-bottom:8px;margin-top:16px;border-top:1px solid var(--border-light);padding-top:12px;">
+        <i class="fas fa-triangle-exclamation mr-1" style="color:var(--danger);"></i>待处理提醒
+      </div>
+      <div id="healthAlerts"></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- 月度明细表：只在「近一年」时显示，每月一行，一个月都不少 -->
+<div id="monthlyPanel" class="card" style="margin-bottom:24px; display:none;">
+  <div class="card-header">
+    <span style="font-weight:600;"><i class="fas fa-table-list mr-2" style="color:var(--accent);"></i>近 12 个月经营明细</span>
+    <span class="badge badge-accent" id="monthlyRange">--</span>
+  </div>
+  <div class="card-body" style="padding:0;">
+    <table style="width:100%;border-collapse:collapse;font-size:13px;">
+      <thead>
+        <tr style="color:var(--text-muted);font-size:12px;text-align:right;">
+          <th style="text-align:left;padding:10px 16px;font-weight:500;">月份</th>
+          <th style="padding:10px 8px;font-weight:500;">营业额</th>
+          <th style="padding:10px 8px;font-weight:500;">订单数</th>
+          <th style="padding:10px 8px;font-weight:500;">客单价</th>
+          <th style="padding:10px 8px;font-weight:500;">毛利</th>
+          <th style="padding:10px 16px;font-weight:500;">环比</th>
+        </tr>
+      </thead>
+      <tbody id="monthlyTableBody">
+        <tr><td colspan="6" style="padding:20px;text-align:center;color:var(--text-muted);">加载中...</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- AI补货分析结果面板（默认隐藏，点击按钮后展开） -->
+<div id="replenishPanel" class="card" style="margin-bottom:24px; display:none;">
+  <div class="card-header">
+    <span style="font-weight:600;"><i class="fas fa-robot mr-2" style="color:var(--accent);"></i>AI补货分析报告</span>
+    <div style="display:flex;gap:8px;">
+      <span class="badge badge-accent" id="replenishSource">RAG + LLM</span>
+      <button class="btn btn-sm btn-secondary" onclick="document.getElementById('replenishPanel').style.display='none'">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+  </div>
+  <div class="card-body" id="replenishContent">
+    <div class="empty-state"><p>点击"AI补货分析"按钮生成报告</p></div>
+  </div>
+</div>
+
+<!-- RAG引擎展示（独占一行） -->
+<div class="card" style="margin-bottom:24px;">
+  <div class="card-header">
+    <span style="font-weight:600;"><i class="fas fa-brain mr-2" style="color:var(--accent);"></i>RAG 智能推荐引擎（Qdrant 向量检索演示）</span>
+    <span class="badge badge-accent">语义匹配</span>
+  </div>
+  <div class="card-body">
+    <div style="font-size:13px;color:var(--text-muted);margin-bottom:16px;line-height:1.6;">
+      <i class="fas fa-cogs mr-1"></i><b>工作原理：</b>
+      客户消费记录 → 文本向量化（128维字符哈希）→ Qdrant 余弦相似度检索 → Top3 相似客户 → 关联商品推荐
+    </div>
+    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px;" id="ragRecommendations">
+      <div class="empty-state" style="grid-column:1/-1;"><p>暂无销售数据，收银台完成结算后自动生成推荐</p></div>
+    </div>
+  </div>
+</div>
+
+<!-- 底部：AI内容运营工作台 -->
+<div class="card">
+  <div class="card-header">
+    <span style="font-weight:600;"><i class="fas fa-robot mr-2" style="color:var(--accent);"></i>AI内容运营工作台（Content Agent）</span>
+    <button class="btn btn-sm btn-primary" onclick="generateAIContent()">
+      <i class="fas fa-wand-magic-sparkles mr-1"></i>生成文案
+    </button>
+  </div>
+  <div class="card-body">
+    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px;">
+      <!-- 朋友圈文案 -->
+      <div style="padding:12px;background:var(--bg-input);border-radius:8px;">
+        <div style="font-size:13px;font-weight:600;margin-bottom:8px;">
+          <i class="fa-brands fa-weixin mr-1" style="color:#07c160;"></i>朋友圈文案
+        </div>
+        <p id="wechatCopyPreview" style="font-size:13px;color:var(--text-secondary);line-height:1.6;">点击"生成文案"获取AI推荐...</p>
+        <button class="btn btn-sm btn-secondary mt-2" onclick="copyContent('wechat')"><i class="far fa-copy mr-1"></i>复制</button>
+      </div>
+      <!-- 社区群公告 -->
+      <div style="padding:12px;background:var(--bg-input);border-radius:8px;">
+        <div style="font-size:13px;font-weight:600;margin-bottom:8px;">
+          <i class="fas fa-users mr-1" style="color:var(--info);"></i>社区群推广
+        </div>
+        <p id="communityCopyPreview" style="font-size:13px;color:var(--text-secondary);line-height:1.6;">点击"生成文案"获取AI推荐...</p>
+        <button class="btn btn-sm btn-secondary mt-2" onclick="copyContent('community')"><i class="far fa-copy mr-1"></i>复制</button>
+      </div>
+      <!-- 今日推荐素材 -->
+      <div style="padding:12px;background:var(--bg-input);border-radius:8px;">
+        <div style="font-size:13px;font-weight:600;margin-bottom:8px;">
+          <i class="fas fa-camera-retro mr-1" style="color:var(--accent);"></i>今日推荐素材
+        </div>
+        <div id="contentMaterial" style="font-size:13px;color:var(--text-secondary);line-height:1.6;">
+          点击"生成文案"获取AI推荐...
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</main>
+
+<!-- Loading遮罩 -->
+<div class="loading-overlay" id="loadingOverlay" style="display:none;">
+  <div class="loading-box">
+    <div class="spinner spinner-lg" style="margin:0 auto 12px;"></div>
+    <p style="font-weight:500;">正在加载经营数据...</p>
+  </div>
+</div>
+
+<!-- Toast容器 -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- ?v= 用于强制浏览器取新脚本：改了 dashboard.js 就把它 +1，否则会拿到缓存里的旧版 -->
+<script src="js/dashboard.js?v=5"></script>
+</body>
+</html>
